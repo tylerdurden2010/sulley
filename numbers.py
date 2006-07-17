@@ -36,13 +36,14 @@ class bit_field (object):
 
         # pad the bit stream to the next byte boundary.
         bit_stream = ""
-        if not self.width % 8 == 0:
-            bit_stream  = "0" * (8 - (self.width % 8)) #XXX: if width is 8/16/32 this will pad an extra byte
+        if self.width % 8 == 0:
+        	bit_stream += self.to_binary()
         else:
+            bit_stream  = "0" * (8 - (self.width % 8))
             bit_stream += self.to_binary()
 
-        flattened = ""
 
+        flattened = ""
         # convert the bit stream from a string of bits into raw bytes.
         for i in xrange(len(bit_stream) / 8):
             chunk = bit_stream[8*i:8*i+8]
