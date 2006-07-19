@@ -132,32 +132,32 @@ class bit_field (object):
 
 ########################################################################################################################
 class nibble (bit_field):
-    def __init__ (self, value=0, maxval=None):
-        bit_field.__init__(self, 4, value=value, maxval=None)
+    def __init__ (self, value=0, max_num=None):
+        bit_field.__init__(self, 4, value=value, max_num=None)
 
 
 ########################################################################################################################
 class byte (bit_field):
-    def __init__ (self, value=0, maxval=None):
-        bit_field.__init__(self, 8, value=value, maxval=None)
+    def __init__ (self, value=0, max_num=None):
+        bit_field.__init__(self, 8, value=value, max_num=None)
 
 
 ########################################################################################################################
 class word (bit_field):
-    def __init__ (self, value=0, maxval=None):
-        bit_field.__init__(self, 16, value=value, maxval=None)
+    def __init__ (self, value=0, max_num=None):
+        bit_field.__init__(self, 16, value=value, max_num=None)
 
 
 ########################################################################################################################
 class dword (bit_field):
-    def __init__ (self, value=0, maxval=None):
-        bit_field.__init__(self, 32, value=value, maxval=None)
+    def __init__ (self, value=0, max_num=None):
+        bit_field.__init__(self, 32, value=value, max_num=None)
 
 
 ########################################################################################################################
 class qword (bit_field):
-    def __init__ (self, value=0, maxval=None):
-        bit_field.__init__(self, 64, value=value, maxval=None)
+    def __init__ (self, value=0, max_num=None):
+        bit_field.__init__(self, 64, value=value, max_num=None)
 
 
 ########################################################################################################################
