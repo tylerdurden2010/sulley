@@ -116,33 +116,33 @@ class bit_field (object):
 
 
 ########################################################################################################################
-class nibble (bits):
+class nibble (bit_field):
     def __init__ (self, value=0, maxval=None):
-        bits.__init__(self, 4, value=value, maxval=None)
+        bit_field.__init__(self, 4, value=value, maxval=None)
 
 
 ########################################################################################################################
-class byte (bits):
+class byte (bit_field):
     def __init__ (self, value=0, maxval=None):
-        bits.__init__(self, 8, value=value, maxval=None)
+        bit_field.__init__(self, 8, value=value, maxval=None)
 
 
 ########################################################################################################################
-class word (bits):
+class word (bit_field):
     def __init__ (self, value=0, maxval=None):
-        bits.__init__(self, 16, value=value, maxval=None)
+        bit_field.__init__(self, 16, value=value, maxval=None)
 
 
 ########################################################################################################################
-class dword (bits):
+class dword (bit_field):
     def __init__ (self, value=0, maxval=None):
-        bits.__init__(self, 32, value=value, maxval=None)
+        bit_field.__init__(self, 32, value=value, maxval=None)
 
 
 ########################################################################################################################
-class qword (bits):
+class qword (bit_field):
     def __init__ (self, value=0, maxval=None):
-        bits.__init__(self, 64, value=value, maxval=None)
+        bit_field.__init__(self, 64, value=value, maxval=None)
 
 
 ########################################################################################################################
