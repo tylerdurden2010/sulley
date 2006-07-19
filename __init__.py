@@ -4,3 +4,5 @@ __all__ = \
 ]
 
 from numbers import *
+
+print bits(31).random()
