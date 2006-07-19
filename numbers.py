@@ -14,15 +14,14 @@ class bit_field (object):
     LITTLE_ENDIAN = 1
 
     ####################################################################################################################
-    def __init__ (self, width, value=0, maxval=None):
+    def __init__ (self, width, value=0, max_num=None):
         self.width   = width
-        self.max_num = self.to_decimal("1" * width)
-
-        if not maxval == None:
-            self.max_num = maxval
-
+        self.max_num = max_num
         self.value   = value
         self.endian  = self.BIG_ENDIAN
+
+        if self.max_num == None:
+            self.max_num = self.to_decimal("1" * width)
 
 
     ####################################################################################################################
@@ -36,20 +35,22 @@ class bit_field (object):
 
         # pad the bit stream to the next byte boundary.
         bit_stream = ""
+
         if self.width % 8 == 0:
-        	bit_stream += self.to_binary()
+            bit_stream += self.to_binary()
         else:
             bit_stream  = "0" * (8 - (self.width % 8))
             bit_stream += self.to_binary()
 
 
         flattened = ""
+
         # convert the bit stream from a string of bits into raw bytes.
         for i in xrange(len(bit_stream) / 8):
             chunk = bit_stream[8*i:8*i+8]
             flattened += struct.pack("B", self.to_decimal(chunk))
 
-        # if necessary, convert the endianess of the raw bytes
+        # if necessary, convert the endianess of the raw bytes.
         if self.endian == self.LITTLE_ENDIAN:
             flattened = list(flattened)
             flattened.reverse()
@@ -67,10 +68,8 @@ class bit_field (object):
 
     ####################################################################################################################
     def random (self):
-    	#return random.randint(0, self.max_num)
-        #self.value = random.randint(0, self.max_num) #XXX: this is all wrong. fixed above.
         self.value = random.randint(0, self.max_num)
-        return self
+        return self.value
 
 
     ####################################################################################################################
@@ -87,7 +86,7 @@ class bit_field (object):
 
         for case in smart_cases:
             self.value = case
-            yield self
+            yield self.value
 
 
     ####################################################################################################################
