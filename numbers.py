@@ -14,11 +14,12 @@ class bit_field (object):
     LITTLE_ENDIAN = 1
 
     ####################################################################################################################
-    def __init__ (self, width, value=0, max_num=None):
+    def __init__ (self, width, value=0, max_num=None, static=False):
         self.width   = width
         self.max_num = max_num
         self.value   = value
         self.endian  = self.BIG_ENDIAN
+        self.static  = static
 
         if self.max_num == None:
             self.max_num = self.to_decimal("1" * width)
@@ -61,6 +62,10 @@ class bit_field (object):
 
     ####################################################################################################################
     def iterate (self):
+        # don't make any changes if the object was marked as static.
+        if self.static:
+            pass
+
         while self.value <= self.max_num:
             self.value += 1
             yield self.value
@@ -68,12 +73,20 @@ class bit_field (object):
 
     ####################################################################################################################
     def random (self):
+        # don't make any changes if the object was marked as static.
+        if self.static:
+            pass
+
         self.value = random.randint(0, self.max_num)
         return self.value
 
 
     ####################################################################################################################
     def smart (self):
+        # don't make any changes if the object was marked as static.
+        if self.static:
+            pass
+
         # 0, -1, max, max/2, max/4, +border cases around previous (use a loop +append)
         smart_cases = \
         [
