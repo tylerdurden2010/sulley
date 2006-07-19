@@ -67,8 +67,10 @@ class bit_field (object):
 
     ####################################################################################################################
     def random (self):
-    	return random.randint(0, self.max_num)
+    	#return random.randint(0, self.max_num)
         #self.value = random.randint(0, self.max_num) #XXX: this is all wrong. fixed above.
+        self.value = random.randint(0, self.max_num)
+        return self
 
 
     ####################################################################################################################
@@ -85,7 +87,7 @@ class bit_field (object):
 
         for case in smart_cases:
             self.value = case
-            yield case
+            yield self
 
 
     ####################################################################################################################
