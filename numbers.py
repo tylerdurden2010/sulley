@@ -99,7 +99,7 @@ class bit_field (object):
 
         for case in smart_cases:
             self.value = case
-            yield self.value
+            yield bit_field(self.width, value=self.value)
 
 
     ####################################################################################################################
