@@ -15,11 +15,12 @@ class bit_field (object):
 
     ####################################################################################################################
     def __init__ (self, width, value=0, max_num=None, static=False):
-        self.width   = width
-        self.max_num = max_num
-        self.value   = value
-        self.endian  = self.BIG_ENDIAN
-        self.static  = static
+        self.width          = width
+        self.max_num        = max_num
+        self.value          = value
+        self.original_value = value
+        self.endian         = self.BIG_ENDIAN
+        self.static         = static
 
         if self.max_num == None:
             self.max_num = self.to_decimal("1" * width)
@@ -68,7 +69,7 @@ class bit_field (object):
 
         while self.value <= self.max_num:
             self.value += 1
-            yield self.value
+            return self.value
 
 
     ####################################################################################################################
@@ -99,7 +100,7 @@ class bit_field (object):
 
         for case in smart_cases:
             self.value = case
-            yield bit_field(self.width, value=self.value)
+            return self.value
 
 
     ####################################################################################################################
