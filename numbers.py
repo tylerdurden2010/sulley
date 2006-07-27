@@ -1,7 +1,7 @@
 #!c:\python\python.exe
 
 import random
-import struct
+from struct import *
 
 ########################################################################################################################
 class bit_field (object):
@@ -15,12 +15,12 @@ class bit_field (object):
 
     ####################################################################################################################
     def __init__ (self, width, value=0, max_num=None, static=False):
-        self.width          = width
-        self.max_num        = max_num
-        self.value          = value
-        self.original_value = value
-        self.endian         = self.BIG_ENDIAN
-        self.static         = static
+        self.defaultval = value # this assignment will be persistent via fuzzing ('cause we edit in memory)
+        self.width      = width
+        self.max_num    = max_num
+        self.value      = value
+        self.endian     = self.LITTLE_ENDIAN
+        self.static     = static
 
         if self.max_num == None:
             self.max_num = self.to_decimal("1" * width)
@@ -34,6 +34,20 @@ class bit_field (object):
         @rtype:  Raw Bytes
         @return: Raw byte representation
         '''
+
+        if not type(self.value) == int:
+            if isinstance(self, byte):
+                self.value = unpack("B", self.value)
+                self.value = self.value[0]
+            elif isinstance(self, word):
+                self.value = unpack("i", self.value)
+                self.value = self.value[0]
+            elif isinstance(self, dword):
+                self.value = unpack("l", self.value)
+                self.value = self.value[0]
+            elif isinstance(self, qword):
+                self.value = unpack("q", self.value)
+                self.value = self.value[0]
 
         # pad the bit stream to the next byte boundary.
         bit_stream = ""
@@ -50,7 +64,7 @@ class bit_field (object):
         # convert the bit stream from a string of bits into raw bytes.
         for i in xrange(len(bit_stream) / 8):
             chunk = bit_stream[8*i:8*i+8]
-            flattened += struct.pack("B", self.to_decimal(chunk))
+            flattened += pack("B", self.to_decimal(chunk))
 
         # if necessary, convert the endianess of the raw bytes.
         if self.endian == self.LITTLE_ENDIAN:
@@ -59,49 +73,6 @@ class bit_field (object):
             flattened = "".join(flattened)
 
         return flattened
-
-
-    ####################################################################################################################
-    def iterate (self):
-        # don't make any changes if the object was marked as static.
-        if self.static:
-            pass
-
-        while self.value <= self.max_num:
-            self.value += 1
-            return self.value
-
-
-    ####################################################################################################################
-    def random (self):
-        # don't make any changes if the object was marked as static.
-        if self.static:
-            pass
-
-        self.value = random.randint(0, self.max_num)
-        return self.value
-
-
-    ####################################################################################################################
-    def smart (self):
-        # don't make any changes if the object was marked as static.
-        if self.static:
-            pass
-
-        # 0, -1, max, max/2, max/4, +border cases around previous (use a loop +append)
-        smart_cases = \
-        [
-            0,
-            self.max_num,
-            self.max_num / 2,
-            self.max_num / 4,
-            # etc...
-        ]
-
-        for case in smart_cases:
-            self.value = case
-            return self.value
-
 
     ####################################################################################################################
     def to_binary (self, number=None, bit_count=None):
@@ -130,35 +101,50 @@ class bit_field (object):
     def to_decimal (self, binary):
         return int(binary, 2)
 
+    ####################################################################################################################
+    def fuzz (self):
+        cases = \
+        [
+            self.max_num,
+            self.max_num / 2,
+            self.max_num / 4,
+        ]
 
-########################################################################################################################
-class nibble (bit_field):
-    def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 4, value=value, max_num=None)
+        if isinstance(self, byte):
+            self.value = pack("B", self.max_num)
+        elif isinstance(self, word):
+            self.value = pack("I", self.max_num)
+        elif isinstance(self, dword):
+            self.value = pack("L", self.max_num)
+        elif isinstance(self, qword):
+            self.value = pack("Q", self.max_num)
 
+    ####################################################################################################################
+    def reset (self):
+        self.value = self.defaultval
 
 ########################################################################################################################
 class byte (bit_field):
     def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 8, value=value, max_num=None)
+        bit_field.__init__(self, 8, value=pack("B", value), max_num=None)
 
 
 ########################################################################################################################
 class word (bit_field):
     def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 16, value=value, max_num=None)
+        bit_field.__init__(self, 16, value=pack("i", value), max_num=None)
 
 
 ########################################################################################################################
 class dword (bit_field):
     def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 32, value=value, max_num=None)
+        bit_field.__init__(self, 32, value=pack("l", value), max_num=None)
 
 
 ########################################################################################################################
 class qword (bit_field):
     def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 64, value=value, max_num=None)
+        bit_field.__init__(self, 64, value=pack("q", value), max_num=None)
 
 
 ########################################################################################################################
