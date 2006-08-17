@@ -125,26 +125,26 @@ class bit_field (object):
 
 ########################################################################################################################
 class byte (bit_field):
-    def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 8, value=pack("B", value), max_num=None)
+    def __init__ (self, value=0, max_num=None, static=False):
+        bit_field.__init__(self, 8, value=pack("B", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
 class word (bit_field):
-    def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 16, value=pack("i", value), max_num=None)
+    def __init__ (self, value=0, max_num=None, static=False):
+        bit_field.__init__(self, 16, value=pack("i", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
 class dword (bit_field):
-    def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 32, value=pack("l", value), max_num=None)
+    def __init__ (self, value=0, max_num=None, static=False):
+        bit_field.__init__(self, 32, value=pack("l", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
 class qword (bit_field):
-    def __init__ (self, value=0, max_num=None):
-        bit_field.__init__(self, 64, value=pack("q", value), max_num=None)
+    def __init__ (self, value=0, max_num=None, static=False):
+        bit_field.__init__(self, 64, value=pack("q", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
