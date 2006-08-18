@@ -1,7 +1,7 @@
 #!c:\python\python.exe
 
 import random
-from struct import *
+import struct
 
 ########################################################################################################################
 class bit_field (object):
@@ -37,16 +37,16 @@ class bit_field (object):
 
         if not type(self.value) == int:
             if isinstance(self, byte):
-                self.value = unpack("B", self.value)
+                self.value = struct.unpack("B", self.value)
                 self.value = self.value[0]
             elif isinstance(self, word):
-                self.value = unpack("i", self.value)
+                self.value = struct.unpack("i", self.value)
                 self.value = self.value[0]
             elif isinstance(self, dword):
-                self.value = unpack("l", self.value)
+                self.value = struct.unpack("l", self.value)
                 self.value = self.value[0]
             elif isinstance(self, qword):
-                self.value = unpack("q", self.value)
+                self.value = struct.unpack("q", self.value)
                 self.value = self.value[0]
 
         # pad the bit stream to the next byte boundary.
@@ -64,7 +64,7 @@ class bit_field (object):
         # convert the bit stream from a string of bits into raw bytes.
         for i in xrange(len(bit_stream) / 8):
             chunk = bit_stream[8*i:8*i+8]
-            flattened += pack("B", self.to_decimal(chunk))
+            flattened += struct.pack("B", self.to_decimal(chunk))
 
         # if necessary, convert the endianess of the raw bytes.
         if self.endian == self.LITTLE_ENDIAN:
@@ -111,13 +111,13 @@ class bit_field (object):
         ]
 
         if isinstance(self, byte):
-            self.value = pack("B", self.max_num)
+            self.value = struct.pack("B", self.max_num)
         elif isinstance(self, word):
-            self.value = pack("I", self.max_num)
+            self.value = struct.pack("I", self.max_num)
         elif isinstance(self, dword):
-            self.value = pack("L", self.max_num)
+            self.value = struct.pack("L", self.max_num)
         elif isinstance(self, qword):
-            self.value = pack("Q", self.max_num)
+            self.value = struct.pack("Q", self.max_num)
 
     ####################################################################################################################
     def reset (self):
@@ -126,25 +126,25 @@ class bit_field (object):
 ########################################################################################################################
 class byte (bit_field):
     def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 8, value=pack("B", value), max_num=max_num, static=static)
+        bit_field.__init__(self, 8, value=struct.pack("B", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
 class word (bit_field):
     def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 16, value=pack("i", value), max_num=max_num, static=static)
+        bit_field.__init__(self, 16, value=struct.pack("i", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
 class dword (bit_field):
     def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 32, value=pack("l", value), max_num=max_num, static=static)
+        bit_field.__init__(self, 32, value=struct.pack("l", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
 class qword (bit_field):
     def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 64, value=pack("q", value), max_num=max_num, static=static)
+        bit_field.__init__(self, 64, value=struct.pack("q", value), max_num=max_num, static=static)
 
 
 ########################################################################################################################
