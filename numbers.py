@@ -36,6 +36,7 @@ class bit_field (object):
         '''
 
         if not type(self.value) == int:
+            # xxx - this has to be changed to have no knowledge of inherited classes.
             if isinstance(self, byte):
                 self.value = struct.unpack("B", self.value)
                 self.value = self.value[0]
