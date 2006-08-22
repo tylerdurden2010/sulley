@@ -124,6 +124,26 @@ class bit_field (object):
     def reset (self):
         self.value = self.defaultval
 
+    ####################################################################################################################
+    def random (self):
+        return random.randint(0, self.max_num)
+
+    ####################################################################################################################
+    def smart (self):
+        # 0, -1, max, max/2, max/4, +border cases around previous (use a loop +append)
+        smart_cases = \
+        [
+            0,
+            self.max_num,
+            self.max_num / 2,
+            self.max_num / 4,
+            # etc...
+        ]
+
+        for case in smart_cases:
+            self.value = case
+            yield case
+
 ########################################################################################################################
 class byte (bit_field):
     def __init__ (self, value=0, max_num=None, static=False):
