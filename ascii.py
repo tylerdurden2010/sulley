@@ -8,9 +8,9 @@ class ascii (object):
 
     ####################################################################################################################
     def __init__ (self, length):
-        #self.defaultval = value
-        self.length = length
-        self.maxlen     = length
+        #self.defaultval    = value
+        self.length         = length
+        self.maxlen         = length
 
 
     ####################################################################################################################
