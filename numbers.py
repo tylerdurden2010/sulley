@@ -3,6 +3,9 @@
 import random
 import struct
 
+BIG_ENDIAN    = ">"
+LITTLE_ENDIAN = "<"
+
 ########################################################################################################################
 class bit_field (object):
     '''
@@ -10,17 +13,15 @@ class bit_field (object):
     @alias: bits
     '''
 
-    BIG_ENDIAN    = 0
-    LITTLE_ENDIAN = 1
-
     ####################################################################################################################
-    def __init__ (self, width, value=0, max_num=None, static=False):
-        self.defaultval = value # this assignment will be persistent via fuzzing ('cause we edit in memory)
-        self.width      = width
-        self.max_num    = max_num
-        self.value      = value
-        self.endian     = self.LITTLE_ENDIAN
-        self.static     = static
+    def __init__ (self, width, value=0, max_num=None, static=False, endian=LITTLE_ENDIAN):
+        assert(type(value) is int or long)
+
+        self.width   = width
+        self.max_num = max_num
+        self.value   = value
+        self.endian  = endian
+        self.static  = static
 
         if self.max_num == None:
             self.max_num = self.to_decimal("1" * width)
@@ -34,21 +35,6 @@ class bit_field (object):
         @rtype:  Raw Bytes
         @return: Raw byte representation
         '''
-
-        if not type(self.value) == int:
-            # xxx - this has to be changed to have no knowledge of inherited classes.
-            if isinstance(self, byte):
-                self.value = struct.unpack("B", self.value)
-                self.value = self.value[0]
-            elif isinstance(self, word):
-                self.value = struct.unpack("i", self.value)
-                self.value = self.value[0]
-            elif isinstance(self, dword):
-                self.value = struct.unpack("l", self.value)
-                self.value = self.value[0]
-            elif isinstance(self, qword):
-                self.value = struct.unpack("q", self.value)
-                self.value = self.value[0]
 
         # pad the bit stream to the next byte boundary.
         bit_stream = ""
@@ -68,18 +54,17 @@ class bit_field (object):
             flattened += struct.pack("B", self.to_decimal(chunk))
 
         # if necessary, convert the endianess of the raw bytes.
-        if self.endian == self.LITTLE_ENDIAN:
+        if self.endian == LITTLE_ENDIAN:
             flattened = list(flattened)
             flattened.reverse()
             flattened = "".join(flattened)
 
         return flattened
 
+
     ####################################################################################################################
     def to_binary (self, number=None, bit_count=None):
         '''
-        description
-
         @type number:     Integer
         @param number:    (Optional, def=self.value) Number to convert
         @type bit_count:  Integer
@@ -102,6 +87,7 @@ class bit_field (object):
     def to_decimal (self, binary):
         return int(binary, 2)
 
+
     ####################################################################################################################
     def fuzz (self):
         cases = \
@@ -111,22 +97,13 @@ class bit_field (object):
             self.max_num / 4,
         ]
 
-        if isinstance(self, byte):
-            self.value = struct.pack("B", self.max_num)
-        elif isinstance(self, word):
-            self.value = struct.pack("I", self.max_num)
-        elif isinstance(self, dword):
-            self.value = struct.pack("L", self.max_num)
-        elif isinstance(self, qword):
-            self.value = struct.pack("Q", self.max_num)
+        # xxx - complete
 
-    ####################################################################################################################
-    def reset (self):
-        self.value = self.defaultval
 
     ####################################################################################################################
     def random (self):
         return random.randint(0, self.max_num)
+
 
     ####################################################################################################################
     def smart (self):
@@ -140,32 +117,47 @@ class bit_field (object):
             # etc...
         ]
 
+        # xxx - complete
+
         for case in smart_cases:
             self.value = case
             yield case
 
+
 ########################################################################################################################
 class byte (bit_field):
-    def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 8, value=struct.pack("B", value), max_num=max_num, static=static)
+    def __init__ (self, value=0, max_num=None, static=False, endian=LITTLE_ENDIAN):
+        if type(value) not in [int, long]:
+            value = struct.unpack(endian + "B", value)[0]
+
+        bit_field.__init__(self, 8, value, max_num, static, endian)
 
 
 ########################################################################################################################
 class word (bit_field):
-    def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 16, value=struct.pack("i", value), max_num=max_num, static=static)
+    def __init__ (self, value=0, max_num=None, static=False, endian=LITTLE_ENDIAN):
+        if type(value) not in [int, long]:
+            value = struct.unpack(endian + "H", value)[0]
+
+        bit_field.__init__(self, 16, value, max_num, static, endian)
 
 
 ########################################################################################################################
 class dword (bit_field):
-    def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 32, value=struct.pack("l", value), max_num=max_num, static=static)
+    def __init__ (self, value=0, max_num=None, static=False, endian=LITTLE_ENDIAN):
+        if type(value) not in [int, long]:
+            value = struct.unpack(endian + "L", value)[0]
+
+        bit_field.__init__(self, 32, value, max_num, static, endian)
 
 
 ########################################################################################################################
 class qword (bit_field):
-    def __init__ (self, value=0, max_num=None, static=False):
-        bit_field.__init__(self, 64, value=struct.pack("q", value), max_num=max_num, static=static)
+    def __init__ (self, value=0, max_num=None, static=False, endian=LITTLE_ENDIAN):
+        if type(value) not in [int, long]:
+            value = struct.unpack(endian + "Q", value)[0]
+
+        bit_field.__init__(self, 64, value, max_num, static, endian)
 
 
 ########################################################################################################################
