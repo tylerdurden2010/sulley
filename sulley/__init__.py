@@ -11,33 +11,6 @@ LITTLE_ENDIAN   = "<"
 ### REQUEST MANAGEMENT
 ########################################################################################################################
 
-def s_copy (src, dst):
-    '''
-    Make a copy of a request and select the new request as the current one.
-    
-    @todo: fix this routine
-    
-    @type  src: String
-    @param src: Name of source request we are copying
-    @type  dst: String
-    @param dst: Name of destination request we are copying to
-    '''
-
-    raise sex.error("ROUTINE NOT WORKING")
-
-    if blocks.REQUESTS.has_key(dst):
-        raise sex.error("DESTINATION BLOCK ALREADY EXISTS: %s" % dst)
-
-    if not blocks.REQUESTS.has_key(src):
-        raise sex.error("SOURCE BLOCK NOT FOUND: %s" % src)
-    
-    import copy
-    
-    # XXX - deepcopy call fails.
-    blocks.REQUESTS[dst] = copy.deepcopy(blocks.REQUESTS[src])
-    blocks.CURRENT       = blocks.REQUESTS[dst]
-
-
 def s_initialize (name):
     '''
     Initialize a new block request. All blocks / primitives generated after this call apply to the named request.
@@ -85,10 +58,10 @@ def s_switch (name):
     
     
 ########################################################################################################################
-### BLOCKS MANAGEMENT
+### BLOCK MANAGEMENT
 ########################################################################################################################
 
-def s_block_start (name, encoder=None):
+def s_block_start (name, group=None, encoder=None):
     '''
     Open a new block under the current request. This routine always returns True so you can make your fuzzer pretty
     with indenting::
@@ -98,11 +71,15 @@ def s_block_start (name, encoder=None):
             if s_block_start("body"):
                 ...
 
-    @type  name: String
-    @param name: Name of block being opened
+    @type  name:    String
+    @param name:    Name of block being opened
+    @type  group:   String
+    @param group:   (Optional, def=None) Name of group to associate this block with
+    @type  encoder: Function Pointer
+    @param encoder: (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
     '''
 
-    block = blocks.block(name, blocks.CURRENT, encoder)
+    block = blocks.block(name, blocks.CURRENT, group, encoder)
     blocks.CURRENT.push(block)
 
     return True
@@ -229,6 +206,23 @@ def s_delim (value, fuzzable=True, name=None):
     blocks.CURRENT.push(delim)
     
 
+########################################################################################################################
+def s_group (name, values):
+    '''
+    This primitive represents a list of static values, stepping through each one on mutation. You can tie a block
+    to a group primitive to specify that the block should cycle through all possible mutations for *each* value
+    within the group. The group primitive is useful for example for representing a list of valid opcodes.
+
+    @type  name:   String
+    @param name:   Name of group
+    @type  values: List
+    @param values: List of possible values this group can take.
+    '''
+
+    group = primitives.group(name, values)
+    blocks.CURRENT.push(group)
+    
+        
 def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, name=None):
     '''
     Generate a random chunk of data while maintaining a copy of the original. A random length range can be specified.
@@ -407,4 +401,41 @@ s_char   = s_byte
 s_short  = s_word
 s_long   = s_int = s_dword
 s_double = s_qword
-s_dunno  = s_raw = s_static
+
+
+########################################################################################################################
+### MISC
+########################################################################################################################
+
+def s_hex_dump (data, addr=0):
+    dump = slice = ""
+
+    for byte in data:
+        if addr % 16 == 0:
+            dump += " "
+
+            for char in slice:
+                if ord(char) >= 32 and ord(char) <= 126:
+                    dump += char
+                else:
+                    dump += "."
+
+            dump += "\n%04x: " % addr
+            slice = ""
+
+        dump  += "%02x " % ord(byte)
+        slice += byte
+        addr  += 1
+
+    remainder = addr % 16
+
+    if remainder != 0:
+        dump += "   " * (16 - remainder) + " "
+
+    for char in slice:
+        if ord(char) >= 32 and ord(char) <= 126:
+            dump += char
+        else:
+            dump += "."
+
+    return dump + "\n"

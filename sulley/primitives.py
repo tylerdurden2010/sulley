@@ -63,6 +63,15 @@ class base_primitive (object):
         return self.rendered
 
 
+    def reset (self):
+        '''
+        Reset this primitive to the starting mutation state.
+        '''
+
+        self.fuzz_complete  = False
+        self.mutant_index   = 0
+
+
 ########################################################################################################################
 class delim (base_primitive):
     def __init__ (self, value, fuzzable=True, name=None):
@@ -100,6 +109,66 @@ class delim (base_primitive):
 
 
 ########################################################################################################################
+class group (base_primitive):
+    def __init__ (self, name, values):
+        '''
+        This primitive represents a list of static values, stepping through each one on mutation. You can tie a block
+        to a group primitive to specify that the block should cycle through all possible mutations for *each* value
+        within the group. The group primitive is useful for example for representing a list of valid opcodes.
+
+        @type  name:   String
+        @param name:   Name of group
+        @type  values: List
+        @param values: List of possible values this group can take.
+        '''
+
+        self.name          = name
+        self.values        = values
+        self.fuzzable      = True
+
+        self.value         = self.values[0]
+        self.rendered      = ""
+        self.fuzz_complete = False
+        self.mutant_index  = 0      # start mutating at 1, since the first item is the default.
+
+
+    def mutate (self):
+        '''
+        Move to the next item in the values list.
+
+        @rtype:  False
+        @return: False
+        '''
+
+        if self.mutant_index == self.num_mutations():
+            self.fuzz_complete = True
+
+        # if fuzzing was disabled or complete, and mutate() is called, ensure the original value is restored.
+        if not self.fuzzable or self.fuzz_complete:
+            self.value = self.values[0]
+            return False
+
+        # step through the value list/
+        self.value = self.values[self.mutant_index]
+
+        # increment the mutation count.
+        self.mutant_index += 1
+
+        return True
+
+
+    def num_mutations (self):
+        '''
+        Number of values in this primitive.
+
+        @rtype:  Integer
+        @return: Number of values in this primitive.
+        '''
+
+        return len(self.values)
+
+
+########################################################################################################################
 class random_data (base_primitive):
     def __init__ (self, value, min_length, max_length, max_mutations=25, fuzzable=True, name=None):
         '''
@@ -129,7 +198,7 @@ class random_data (base_primitive):
 
         self.rendered      = ""        # rendered value
         self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
-        self.mutant_index  = 0         # current mutation number
+        self.mutant_index  = 1         # current mutation number
 
 
     def mutate (self):
