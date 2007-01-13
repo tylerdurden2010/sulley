@@ -13,6 +13,7 @@ todo:
 from sulley import *
 
 import base64
+import sys
 
 s_initialize("packet 1")
 
@@ -27,7 +28,7 @@ s_static(">>>")
 
 s_sizer("header")
 s_static(">>>")
-if s_block_start("header", base64.b64encode):
+if s_block_start("header", encoder=base64.b64encode):
     s_static("pedram amini")
     s_static(" is the coolest")
     s_short(0xdead)
@@ -49,15 +50,16 @@ if s_block_start("body"):
     s_static(">>>")
     s_short(0xdead)
     s_static(">>>")
-    s_block_end()
-    if s_block_start("embedded"):
+    s_group("opcodes", values=["\x01", "\x02", "\x03"])
+    if s_block_start("embedded", group="opcodes"):
         s_delim("@")
         s_static(">>>")
-        s_random("random", 10, 40)
+        s_random("random", 10, 200)
         s_static(">>>")
         s_string("pedram")
         s_static(">>>")
         s_block_end()
+    s_block_end()
 
 s_static(">>>")
 s_checksum("body")
@@ -67,24 +69,27 @@ s_static(">>>")
 s_static(" final.")
 s_static(">>>")
 
-import md5
-digests = {}
+print blocks.CURRENT.num_mutations()
 
 while 1:
     print "[%d of %d]\r" % (blocks.CURRENT.mutant_index, blocks.CURRENT.num_mutations()),
     data   = s_render()
-    digest = md5.md5(data).digest()
-    
-    if digests.has_key(digest):
-        print "DUP ALERT"
-    
-    digests[digest] = 1
     
     if not s_mutate():
         print
         break
 
-print len(digests.keys())
+print blocks.CURRENT.mutant_index
+
+blocks.CURRENT.reset()
+
+while 1:
+    #print s_hex_dump(s_render())
+
+    if not s_mutate():
+        break
+    
+print blocks.CURRENT.mutant_index
 
 #s_update("changeme", 0xaaaaaaaaaaaaaa)
 #print s_render()

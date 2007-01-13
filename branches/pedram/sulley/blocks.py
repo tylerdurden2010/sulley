@@ -101,36 +101,90 @@ class request:
         return self.rendered
 
 
+    def reset (self):
+        '''
+        Reset every block and primitives mutant state under this request.
+        '''
+
+        self.mutant_index = 0
+
+        for item in self.stack:
+            if item.fuzzable:
+                item.reset()
+                
+                
 ########################################################################################################################
 class block:
-    def __init__ (self, block_name, request, encoder=None):
+    def __init__ (self, name, request, group=None, encoder=None):
         '''
         The basic building block. Can contain primitives, sizers, checksums or other blocks.
 
-        @type  block_name: String
-        @param block_name: Name of the new block
-        @type  request:    s_request
-        @param request:    Request this block belongs to
-        @type  encoder:    Function Pointer
-        @param encoder:    (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
+        @type  name:    String
+        @param name:    Name of the new block
+        @type  request: s_request
+        @param request: Request this block belongs to
+        @type  group:   String
+        @param group:   (Optional, def=None) Name of group to associate this block with
+        @type  encoder: Function Pointer
+        @param encoder: (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
         '''
 
-        self.block_name = block_name
-        self.request    = request
-        self.encoder    = encoder
+        self.name      = name
+        self.request   = request
+        self.group     = group
+        self.encoder   = encoder
         
-        self.stack      = []
-        self.rendered   = ""
-        self.fuzzable   = True
+        self.stack     = []
+        self.rendered  = ""
+        self.fuzzable  = True
+        self.group_idx = 0
 
 
     def mutate (self):
         mutated = False
         
-        for item in self.stack:
-            if item.fuzzable and item.mutate():
-                mutated = True
-                break
+        # mutate every item on the stack for every possible group value.
+        if self.group:
+            group_count = len(self.request.names[self.group].values)
+            
+            # update the group value to that at the current index.
+            self.request.names[self.group].value = self.request.names[self.group].values[self.group_idx]
+            
+            # mutate every item on the stack at the current group value.
+            for item in self.stack:
+                if item.fuzzable and item.mutate():
+                    mutated = True
+                    break
+
+            # if the possible mutations for the stack are exhausted.
+            if not mutated:
+                # increment the group value index.
+                self.group_idx += 1
+                
+                # if the group values are exhausted, we are done.
+                if self.group_idx == group_count:
+                    return False
+                
+                # update the group value to that at the current index.
+                self.request.names[self.group].value = self.request.names[self.group].values[self.group_idx]
+                
+                # otherwise, reset every items mutate state on the stack.
+                for item in self.stack:
+                    if item.fuzzable:
+                        item.reset()
+        
+                # now mutate the first field.
+                for item in self.stack:
+                    if item.fuzzable and item.mutate():
+                        mutated = True
+                        break
+        
+        # mutate every item on the stack once.
+        else:
+            for item in self.stack:
+                if item.fuzzable and item.mutate():
+                    mutated = True
+                    break
 
         return mutated
 
@@ -141,6 +195,10 @@ class block:
         for item in self.stack:
             if item.fuzzable:
                 num_mutations += item.num_mutations()
+
+        # if this block is associated with a group, then multiply out the number of possible mutations.
+        if self.group:
+            num_mutations *= len(self.request.names[self.group].values)
 
         return num_mutations
         
@@ -175,25 +233,37 @@ class block:
             self.rendered = self.encoder(self.rendered)
 
         # add the completed block to the request dictionary.
-        self.request.closed_blocks[self.block_name] = self
+        self.request.closed_blocks[self.name] = self
 
         # the block is now closed, clear out all the entries from the request back splice dictionary.
-        if self.request.callbacks.has_key(self.block_name):
-            for item in self.request.callbacks[self.block_name]:
+        if self.request.callbacks.has_key(self.name):
+            for item in self.request.callbacks[self.name]:
                 item.render()
-        
+
+
+    def reset (self):
+        '''
+        Reset the primitives on this blocks stack to the starting mutation state.
+        '''
+
+        self.group_idx = 0
+
+        for item in self.stack:
+            if item.fuzzable:
+                item.reset()
+
 
 ########################################################################################################################
 class checksum:
     checksum_lengths = {"crc32":4, "adler32":4, "md5":16, "sha1":20}
 
-    def __init__(self, block_name, request, algorithm="crc32", length=0, endian="<"):
+    def __init__(self, name, request, algorithm="crc32", length=0, endian="<"):
         '''
         Create a checksum block bound to the block with the specified name. You *can not* create a checksm for any
         currently open blocks.
 
-        @type  block_name: String
-        @param block_name: Name of block to apply sizer to
+        @type  name: String
+        @param name: Name of block to apply sizer to
         @type  request:    s_request
         @param request:    Request this block belongs to
         @type  algorithm:  String
@@ -204,7 +274,7 @@ class checksum:
         @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
         '''
 
-        self.block_name = block_name
+        self.name = name
         self.request    = request
         self.algorithm  = algorithm
         self.length     = length
@@ -255,27 +325,32 @@ class checksum:
         self.rendered = ""
 
         # if the target block for this sizer is already closed, render the checksum.
-        if self.block_name in self.request.closed_blocks:
-            block_data    = self.request.closed_blocks[self.block_name].rendered
+        if self.name in self.request.closed_blocks:
+            block_data    = self.request.closed_blocks[self.name].rendered
             self.rendered = self.checksum(block_data)
 
         # otherwise, add this checksum block to the factories callback list.
         else:
-            if not self.request.callbacks.has_key(self.block_name):
-                self.request.callbacks[self.block_name] = []
+            if not self.request.callbacks.has_key(self.name):
+                self.request.callbacks[self.name] = []
 
-            self.request.callbacks[self.block_name].append(self)
+            self.request.callbacks[self.name].append(self)
 
 
 ########################################################################################################################
 class size:
-    def __init__ (self, block_name, request, length=4, endian="<", format="binary", fuzzable=False):
+    '''
+    This block type is kind of special in that it is a hybrid between a block and a primitive (it can be fuzzed). The
+    user does not need to be wary of this fact.
+    '''
+    
+    def __init__ (self, name, request, length=4, endian="<", format="binary", fuzzable=False):
         '''
         Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
         currently open blocks.
 
-        @type  block_name: String
-        @param block_name: Name of block to apply sizer to
+        @type  name: String
+        @param name: Name of block to apply sizer to
         @type  request:    s_request
         @param request:    Request this block belongs to
         @type  length:     Integer
@@ -288,7 +363,7 @@ class size:
         @param fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
         '''
 
-        self.block_name = block_name
+        self.name = name
         self.request    = request
         self.length     = length
         self.endian     = endian
@@ -300,28 +375,6 @@ class size:
         self.fuzz_complete  = self.bit_field.fuzz_complete
         self.fuzz_library   = self.bit_field.fuzz_library
         self.mutant_index   = self.bit_field.mutant_index
-
-
-    def render (self):
-        self.rendered = ""
-
-        # if the target block for this sizer is already closed, render the checksum.
-        if self.block_name in self.request.closed_blocks:
-            block                = self.request.closed_blocks[self.block_name]
-            self.bit_field.value = len(block.rendered)
-            
-            # render the size dependant on the format specified.
-            if self.format == "ascii":
-                self.rendered = "%d" % self.bit_field.value
-            else:
-                self.rendered = self.bit_field.render()
-
-        # otherwise, add this checksum block to the factories callback list.
-        else:
-            if not self.request.callbacks.has_key(self.block_name):
-                self.request.callbacks[self.block_name] = []
-
-            self.request.callbacks[self.block_name].append(self)
 
 
     def mutate (self):
@@ -344,3 +397,37 @@ class size:
         '''
         
         return self.bit_field.num_mutations()
+
+
+    def render (self):
+        '''
+        Render the sizer.
+        '''
+        
+        self.rendered = ""
+
+        # if the target block for this sizer is already closed, render the checksum.
+        if self.name in self.request.closed_blocks:
+            block                = self.request.closed_blocks[self.name]
+            self.bit_field.value = len(block.rendered)
+            
+            # render the size dependant on the format specified.
+            if self.format == "ascii":
+                self.rendered = "%d" % self.bit_field.value
+            else:
+                self.rendered = self.bit_field.render()
+
+        # otherwise, add this checksum block to the factories callback list.
+        else:
+            if not self.request.callbacks.has_key(self.name):
+                self.request.callbacks[self.name] = []
+
+            self.request.callbacks[self.name].append(self)
+
+
+    def reset (self):
+        '''
+        Wrap the reset routine of the internal bit_field primitive.
+        '''
+
+        self.bit_field.reset()
