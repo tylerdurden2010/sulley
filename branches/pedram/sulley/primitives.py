@@ -2,52 +2,61 @@ import random
 import struct
 
 ########################################################################################################################
-class delim (object):
-    def __init__ (self, value, max_rep=100, fuzzable=True, name=None):
-        '''
-        Represent a delimiter such as :,\r,\n, ,=,>,< etc... Mutations include repetition and exclusion.
-        
-        @type  value:    Character
-        @param value:    Original value
-        @type  max_rep:  Integer
-        @param max_rep:  (Optional, def=100) Maximum delimiter repetition length
-        @type  fuzzable: Boolean
-        @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
-        @type  name:     String
-        @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
-        '''
+class base_primitive (object):
+    '''
+    The primitive base class implements common functionality shared across most primitives.
+    '''
 
-        self.value    = self.original_value = value
-        self.max_rep  = max_rep
-        self.fuzzable = fuzzable
-        self.name     = name
-        self.rendered = ""
+    def __init__ (self):
+        self.fuzz_complete  = False
+        self.fuzz_library   = []
+        self.fuzzable       = True
+        self.mutant_index   = 0
+        self.original_value = None
+        self.rendered       = ""
+        self.value          = None
 
 
     def mutate (self):
         '''
-        Mutate the primitive value.
+        Mutate the primitive by stepping through the fuzz library, return False on completion.
+
+        @rtype:  Boolean
+        @return: True on success, False otherwise.
         '''
 
-        # if fuzzing was disabled and mutate() is called, restore the original value.
-        if not self.fuzzable:
+        # if we've ran out of mutations, raise the completion flag.
+        if self.mutant_index == self.num_mutations():
+            self.fuzz_complete = True
+
+        # if fuzzing was disabled or complete, and mutate() is called, ensure the original value is restored.
+        if not self.fuzzable or self.fuzz_complete:
             self.value = self.original_value
-            return
+            return False
 
-        # if the max delim string length is reached, omit the delim and then disable fuzzing.
-        if len(self.value) > max_rep:
-            self.value    = ""
+        # update the current value from the fuzz library.
+        self.value = self.fuzz_library[self.mutant_index]
 
-            # disable fuzzing (ie: restore original value) on next run.
-            self.fuzzable = False
+        # increment the mutation count.
+        self.mutant_index += 1
+        
+        return True
 
-        # exponentially grow the length of the delim string.
-        self.value += self.value
+
+    def num_mutations (self):
+        '''
+        Calculate and return the total number of mutations for this individual primitive.
+
+        @rtype:  Integer
+        @return: Number of mutated forms this primitive can take
+        '''
+
+        return len(self.fuzz_library)
 
 
     def render (self):
         '''
-        Render the primitive.
+        Nothing fancy on render, simply return the value.
         '''
 
         self.rendered = self.value
@@ -55,20 +64,56 @@ class delim (object):
 
 
 ########################################################################################################################
-class random (object):
-    def __init__ (self, value, min_length, max_length, num_mutations=25, fuzzable=True, name=None):
+class delim (base_primitive):
+    def __init__ (self, value, fuzzable=True, name=None):
+        '''
+        Represent a delimiter such as :,\r,\n, ,=,>,< etc... Mutations include repetition and exclusion.
+
+        @type  value:    Character
+        @param value:    Original value
+        @type  fuzzable: Boolean
+        @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
+        @type  name:     String
+        @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
+        '''
+
+        self.value         = self.original_value = value
+        self.fuzzable      = fuzzable
+        self.name          = name
+
+        self.rendered      = ""        # rendered value
+        self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
+        self.fuzz_library  = []        # library of fuzz heuristics
+        self.mutant_index  = 0         # current mutation number
+
+        # build the library of fuzz heuristics.
+        self.fuzz_library.append(self.value * 2)
+        self.fuzz_library.append(self.value * 5)
+        self.fuzz_library.append(self.value * 10)
+        self.fuzz_library.append(self.value * 25)
+        self.fuzz_library.append(self.value * 100)
+        self.fuzz_library.append(self.value * 500)
+        self.fuzz_library.append(self.value * 1000)
+
+        # try ommitting the delimiter too.
+        self.fuzz_library.append("")
+
+
+########################################################################################################################
+class random_data (base_primitive):
+    def __init__ (self, value, min_length, max_length, max_mutations=25, fuzzable=True, name=None):
         '''
         Generate a random chunk of data while maintaining a copy of the original. A random length range can be specified.
         For a static length, set min/max length to be the same.
-        
+
         @type  value:         Raw
         @param value:         Original value
         @type  min_length:    Integer
         @param min_length:    Minimum length of random block
         @type  max_length:    Integer
         @param max_length:    Maximum length of random block
-        @type  num_mutations: Integer
-        @param num_mutations: (Optional, def=25) Number of mutations to make before reverting to default
+        @type  max_mutations: Integer
+        @param max_mutations: (Optional, def=25) Number of mutations to make before reverting to default
         @type  fuzzable:      Boolean
         @param fuzzable:      (Optional, def=True) Enable/disable fuzzing of this primitive
         @type  name:          String
@@ -78,132 +123,232 @@ class random (object):
         self.value         = self.original_value = value
         self.min_length    = min_length
         self.max_length    = max_length
-        self.num_mutations = num_mutations
+        self.max_mutations = max_mutations
         self.fuzzable      = fuzzable
         self.name          = name
-        self.rendered      = ""
+
+        self.rendered      = ""        # rendered value
+        self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
+        self.mutant_index  = 0         # current mutation number
 
 
     def mutate (self):
         '''
-        Mutate the primitive value.
+        Mutate the primitive value returning False on completion.
+
+        @rtype:  Boolean
+        @return: True on success, False otherwise.
         '''
 
-        # if fuzzing was disabled and mutate() is called, restore the original value.
-        if not self.fuzzable:
+        # if we've ran out of mutations, raise the completion flag.
+        if self.mutant_index == self.num_mutations():
+            self.fuzz_complete = True
+
+        # if fuzzing was disabled or complete, and mutate() is called, ensure the original value is restored.
+        if not self.fuzzable or self.fuzz_complete:
             self.value = self.original_value
-            return
+            return False
 
         # select a random length for this string.
-        length     = random.randint(self.mind_length, self.max_length)
+        length = random.randint(self.min_length, self.max_length)
 
         # reset the value and generate a random string of the determined length.
         self.value = ""
         for i in xrange(length):
             self.value += chr(random.randint(0, 255))
 
+        # increment the mutation count.
+        self.mutant_index += 1
+        
+        return True
 
-    def render (self):
+
+    def num_mutations (self):
         '''
-        Render the primitive.
+        Calculate and return the total number of mutations for this individual primitive.
+
+        @rtype:  Integer
+        @return: Number of mutated forms this primitive can take
         '''
 
-        self.rendered = self.value
-        return self.rendered
-
+        return self.max_mutations
 
 
 ########################################################################################################################
-class static (object):
+class static (base_primitive):
     def __init__ (self, value, name=None):
         '''
         Primitive that contains static content.
-        
+
         @type  value: Raw
         @param value: Raw static data
         @type  name:  String
         @param name:  (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
 
-        self.value    = value
-        self.name     = name
-        self.fuzzable = False       # every primitive needs this attribute.
-        self.rendered = ""
+        self.value         = value
+        self.name          = name
+        self.fuzzable      = False       # every primitive needs this attribute.
+
+        self.rendered      = ""
+        self.fuzz_complete = True
 
 
     def mutate (self):
         '''
         Do nothing.
+
+        @rtype:  False
+        @return: False
         '''
 
-        return
+        return False
 
 
-    def render (self):
+    def num_mutations (self):
         '''
-        Render the primitive.
+        Return 0.
+
+        @rtype:  0
+        @return: 0
         '''
 
-        self.rendered = self.value
-        return self.rendered
+        return 0
 
 
 ########################################################################################################################
-class string (object):
-    def __init__ (self, value, size=None, padding="\x00", fuzzable=True, name=None):
+class string (base_primitive):
+    def __init__ (self, value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, name=None):
         '''
         Primitive that cycles through a library of "bad" strings.
-        
+
         @type  value:    String
         @param value:    Default string value
         @type  size:     Integer
-        @param size:     (Optional, def=None) Static size of this field, leave None for dynamic.
+        @param size:     (Optional, def=-1) Static size of this field, leave -1 for dynamic.
         @type  padding:  Character
         @param padding:  (Optional, def="\x00") Value to use as padding to fill static field size.
+        @type  encoding: String
+        @param encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
         @type  fuzzable: Boolean
         @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
         @type  name:     String
         @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
 
-        self.value    = self.original_value = value
-        self.size     = size
-        self.padding  = padding
-        self.fuzzable = fuzzable
-        self.name     = name
-        self.rendered = ""
+        self.value         = self.original_value = value
+        self.size          = size
+        self.padding       = padding
+        self.encoding      = encoding
+        self.fuzzable      = fuzzable
+        self.name          = name
 
-        if not self.size:
-            self.size = len(self.value)
+        self.rendered      = ""        # rendered value
+        self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
+        self.mutant_index  = 0         # current mutation number
+        self.fuzz_library  = \
+        [
+            "/.:/"  + "A"*5000 + "\x00\x00",
+            "/.../" + "A"*5000 + "\x00\x00",
+            "/.../.../.../.../.../.../.../.../.../.../",
+            "/../../../../../../../../../../../../etc/passwd",
+            "/../../../../../../../../../../../../boot.ini",
+            "..:..:..:..:..:..:..:..:..:..:..:..:..:",
+            "\\\\*",
+            "\\\\?\\",
+            "/\\" * 5000,
+            "/." * 5000,
+            "!@#$%%^#$%#$@#$%$$@#$%^^**(()",
+            "%01%02%03%04%0a%0d%0aADSF",
+            "/%00/",
+            "%00/",
+            "%00",
+            "%u0000",
+
+            # format strings.
+            "%n" * 128,
+            "%s" * 128,
+
+            # command injection.
+            "|touch /tmp/SULLEY",
+            ";touch /tmp/SULLEY;",
+            "|notepad",
+            ";notepad;",
+            "\nnotepad\n",
+
+            # SQL injection.
+            "1;SELECT%20*",
+            "'sqlattempt1",
+            "(sqlattempt2)",
+            "OR%201=1",
+        ]
+
+        # add some long strings.
+        self.add_long_strings("A")
+        self.add_long_strings("B")
+        self.add_long_strings("1")
+        self.add_long_strings("<")
+        self.add_long_strings(">")
+        self.add_long_strings("'")
+        self.add_long_strings("\"")
+        self.add_long_strings("/")
+        self.add_long_strings("\\")
+        self.add_long_strings("?")
+        self.add_long_strings("=")
+        self.add_long_strings("&")
+        self.add_long_strings(".")
+        self.add_long_strings("(")
+        self.add_long_strings(")")
+        self.add_long_strings("]")
+        self.add_long_strings("[")
+        self.add_long_strings("%")
+        self.add_long_strings("*")
+        self.add_long_strings("-")
+        self.add_long_strings("+")
+        self.add_long_strings("{")
+        self.add_long_strings("}")
+        self.add_long_strings("\x14")
+        self.add_long_strings("\xFE")   # expands to 4 characters under utf16
+        self.add_long_strings("\xFF")   # expands to 4 characters under utf16
 
 
-    def mutate (self):
+    def add_long_strings (self, sequence):
         '''
-        Mutate the primitive value.
-        @todo: complete
+        Given a sequence, generate a number of selectively chosen strings lengths of the given sequence and add to the
+        string heuristic library.
+
+        @type  sequence: String
+        @param sequence: Sequence to repeat for creation of fuzz strings.
         '''
 
-        # if fuzzing was disabled and mutate() is called, restore the original value.
-        if not self.fuzzable:
-            self.value = self.original_value
-            return
+        for length in [128, 255, 256, 257, 511, 512, 513, 1023, 1024, 2048, 2049, 4095, 4096, 4097, 5000, 10000, 20000,
+                       32762, 32763, 32764, 32765, 32766, 32767, 32768, 32769, 0xFFFF-2, 0xFFFF-1, 0xFFFF, 0xFFFF+1,
+                       0xFFFF+2, 99999, 100000, 500000, 1000000]:
+
+            long_string = sequence * length
+            self.fuzz_library.append(long_string)
 
 
     def render (self):
         '''
-        Render the primitive.
+        Render the primitive, encode the string according to the specified encoding.
         '''
 
-        self.rendered = self.value
+        # try to encode the string properly and fall back to the default value on failure.
+        try:
+            self.rendered = str(self.value).encode(self.encoding)
+        except:
+            self.rendered = self.value
+
         return self.rendered
 
 
 ########################################################################################################################
-class bit_field (object):
+class bit_field (base_primitive):
     def __init__ (self, value, width, max_num=None, endian="<", fuzzable=True, name=None):
         '''
         The bit field primitive represents a number of variable length and is used to define all other integer types.
-        
+
         @type  value:    Integer
         @param value:    Default integer value
         @type  width:    Integer
@@ -219,35 +364,46 @@ class bit_field (object):
         assert(type(value) is int or long)
         assert(type(width) is int or long)
 
-        self.value    = self.original_value = value
-        self.width    = width
-        self.max_num  = max_num
-        self.endian   = endian
-        self.fuzzable = fuzzable
-        self.name     = name
-        self.rendered = ""
+        self.value         = self.original_value = value
+        self.width         = width
+        self.max_num       = max_num
+        self.endian        = endian
+        self.fuzzable      = fuzzable
+        self.name          = name
+
+        self.rendered      = ""        # rendered value
+        self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
+        self.fuzz_library  = []        # library of fuzz heuristics
+        self.mutant_index  = 0         # current mutation number
 
         if self.max_num == None:
             self.max_num = self.to_decimal("1" * width)
 
+        # build the fuzz library.
+        self.add_integer_boundaries(0)
+        self.add_integer_boundaries(self.max_num / 2)
+        self.add_integer_boundaries(self.max_num / 3)
+        self.add_integer_boundaries(self.max_num / 4)
+        self.add_integer_boundaries(self.max_num)
 
-    def mutate (self):
+
+    def add_integer_boundaries (self, integer):
         '''
-        Mutate the primitive value.
-        @todo: complete
+        Add the supplied integer and border cases to the integer fuzz heuristics library.
+
+        @type  integer: Int
+        @param integer: Integer to append to fuzz heuristics
         '''
 
-        # if fuzzing was disabled and mutate() is called, restore the original value.
-        if not self.fuzzable:
-            self.value = self.original_value
-            return
-
-        return
+        for i in xrange(-10, 10):
+            # ensure the border case falls within the valid range for this field.
+            if 0 <= integer - i <= self.max_num:
+                self.fuzz_library.append(integer - i)
 
 
     def render (self):
         '''
-        Render the primitive value into the factory.
+        Render the primitive.
         '''
 
         bit_stream = ""
@@ -309,42 +465,6 @@ class bit_field (object):
         '''
 
         return int(binary, 2)
-
-"""
-    XXX - fix up
-
-    def fuzz (self):
-        cases = \
-        [
-            self.max_num,
-            self.max_num / 2,
-            self.max_num / 4,
-        ]
-
-        # xxx - complete
-
-
-    def random (self):
-        return random.randint(0, self.max_num)
-
-
-    def smart (self):
-        # 0, -1, max, max/2, max/4, +border cases around previous (use a loop +append)
-        smart_cases = \
-        [
-            0,
-            self.max_num,
-            self.max_num / 2,
-            self.max_num / 4,
-            # etc...
-        ]
-
-        # xxx - complete
-
-        for case in smart_cases:
-            self.value = case
-            yield case
-"""
 
 
 ########################################################################################################################

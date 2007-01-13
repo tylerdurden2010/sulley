@@ -20,7 +20,7 @@ s_qword(0xdeadbeefdeadbeef)
 s_static(">>>")
 s_dword(0xdeadbeef, endian=BIG_ENDIAN)
 s_static(">>>")
-s_short(0xdead)
+s_short(0xdead, name="i'm a short")
 s_static(">>>")
 s_byte(0xde)
 s_static(">>>")
@@ -67,6 +67,27 @@ s_static(">>>")
 s_static(" final.")
 s_static(">>>")
 
-print s_render()
-s_update("changeme", 0xaaaaaaaaaaaaaa)
-print s_render()
+import md5
+digests = {}
+
+while 1:
+    print "[%d of %d]\r" % (blocks.CURRENT.mutant_index, blocks.CURRENT.num_mutations()),
+    data   = s_render()
+    digest = md5.md5(data).digest()
+    
+    if digests.has_key(digest):
+        print "DUP ALERT"
+    
+    digests[digest] = 1
+    
+    if not s_mutate():
+        print
+        break
+
+print len(digests.keys())
+
+#s_update("changeme", 0xaaaaaaaaaaaaaa)
+#print s_render()
+#s_mutate()
+#print "." * 80
+#print s_render()
