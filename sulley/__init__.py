@@ -13,10 +13,29 @@ LITTLE_ENDIAN   = "<"
 
 def s_copy (src, dst):
     '''
-    Make a copy of request src.
-    '''
+    Make a copy of a request and select the new request as the current one.
     
-    pass
+    @todo: fix this routine
+    
+    @type  src: String
+    @param src: Name of source request we are copying
+    @type  dst: String
+    @param dst: Name of destination request we are copying to
+    '''
+
+    raise sex.error("ROUTINE NOT WORKING")
+
+    if blocks.REQUESTS.has_key(dst):
+        raise sex.error("DESTINATION BLOCK ALREADY EXISTS: %s" % dst)
+
+    if not blocks.REQUESTS.has_key(src):
+        raise sex.error("SOURCE BLOCK NOT FOUND: %s" % src)
+    
+    import copy
+    
+    # XXX - deepcopy call fails.
+    blocks.REQUESTS[dst] = copy.deepcopy(blocks.REQUESTS[src])
+    blocks.CURRENT       = blocks.REQUESTS[dst]
 
 
 def s_initialize (name):
@@ -33,6 +52,14 @@ def s_initialize (name):
 
     blocks.REQUESTS[name] = blocks.request()
     blocks.CURRENT        = blocks.REQUESTS[name]
+
+
+def s_mutate ():
+    '''
+    Mutate the current request.
+    '''
+
+    return blocks.CURRENT.mutate()
 
 
 def s_render ():
@@ -155,21 +182,50 @@ def s_update (name, value):
 ### PRIMITIVES
 ########################################################################################################################
 
-def s_delim (value, max_rep=100, fuzzable=True, name=None):
+def s_binary (value, name=None):
+    '''
+    Parse a variable format binary string into a static value and push it onto the current block stack.
+    
+    @type  value: String
+    @param value: Variable format binary string
+    @type  name:  String
+    @param name:  (Optional, def=None) Specifying a name gives you direct access to a primitive
+    '''
+
+    # parse the binary string into.
+    parsed = value
+    parsed = parsed.replace(" ",   "")
+    parsed = parsed.replace("\t",  "")
+    parsed = parsed.replace("\r",  "")
+    parsed = parsed.replace("\n",  "")
+    parsed = parsed.replace(",",   "")
+    parsed = parsed.replace("0x",  "")
+    parsed = parsed.replace("\\x", "")
+    
+    value = ""
+    while parsed:
+        pair   = parsed[:2]
+        parsed = parsed[2:]
+
+        value += chr(int(pair, 16))
+
+    static = primitives.static(value, name)
+    blocks.CURRENT.push(static)
+    
+    
+def s_delim (value, fuzzable=True, name=None):
     '''
     Push a delimiter onto the current block stack.
     
     @type  value:    Character
     @param value:    Original value
-    @type  max_rep:  Integer
-    @param max_rep:  (Optional, def=100) Maximum delimiter repetition length
     @type  fuzzable: Boolean
     @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:     String
     @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
     
-    delim = primitives.delim(value, max_rep, fuzzable, name)
+    delim = primitives.delim(value, fuzzable, name)
     blocks.CURRENT.push(delim)
     
 
@@ -192,13 +248,13 @@ def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, na
     @param name:          (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    random = primitives.random(value, min_length, max_length, num_mutations, fuzzable, name)
+    random = primitives.random_data(value, min_length, max_length, num_mutations, fuzzable, name)
     blocks.CURRENT.push(random)
     
 
 def s_static (value, name=None):
     '''
-    Push a stack value onto the current block stack.
+    Push a static value onto the current block stack.
     
     @type  value: Raw
     @param value: Raw static data
