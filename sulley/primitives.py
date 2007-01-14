@@ -39,7 +39,7 @@ class base_primitive (object):
 
         # increment the mutation count.
         self.mutant_index += 1
-        
+
         return True
 
 
@@ -70,6 +70,7 @@ class base_primitive (object):
 
         self.fuzz_complete  = False
         self.mutant_index   = 0
+        self.value          = self.original_value
 
 
 ########################################################################################################################
@@ -118,18 +119,19 @@ class group (base_primitive):
 
         @type  name:   String
         @param name:   Name of group
-        @type  values: List
-        @param values: List of possible values this group can take.
+        @type  values: List or raw data
+        @param values: List of possible raw values this group can take.
         '''
 
-        self.name          = name
-        self.values        = values
-        self.fuzzable      = True
+        self.name           = name
+        self.values         = values
+        self.fuzzable       = True
 
-        self.value         = self.values[0]
-        self.rendered      = ""
-        self.fuzz_complete = False
-        self.mutant_index  = 0      # start mutating at 1, since the first item is the default.
+        self.value          = self.values[0]
+        self.original_value = self.values[0]
+        self.rendered       = ""
+        self.fuzz_complete  = False
+        self.mutant_index   = 1      # XXX - should start mutating at 1, since the first item is the default.
 
 
     def mutate (self):
@@ -198,7 +200,7 @@ class random_data (base_primitive):
 
         self.rendered      = ""        # rendered value
         self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
-        self.mutant_index  = 1         # current mutation number
+        self.mutant_index  = 0         # current mutation number
 
 
     def mutate (self):
@@ -228,7 +230,7 @@ class random_data (base_primitive):
 
         # increment the mutation count.
         self.mutant_index += 1
-        
+
         return True
 
 
@@ -255,7 +257,7 @@ class static (base_primitive):
         @param name:  (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
 
-        self.value         = value
+        self.value         = self.original_value = value
         self.name          = name
         self.fuzzable      = False       # every primitive needs this attribute.
 
@@ -465,9 +467,12 @@ class bit_field (base_primitive):
         '''
 
         for i in xrange(-10, 10):
+            case = integer + i
+
             # ensure the border case falls within the valid range for this field.
-            if 0 <= integer - i <= self.max_num:
-                self.fuzz_library.append(integer - i)
+            if 0 <= case <= self.max_num:
+                if case not in self.fuzz_library:
+                    self.fuzz_library.append(case)
 
 
     def render (self):
