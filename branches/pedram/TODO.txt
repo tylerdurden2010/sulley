@@ -1,7 +1,9 @@
 blocks/primitives
     - address TODOs
     - add text sizers? ie: content-length from http
+    - add text integers?
     - implement fixed length padded strings
+    - delim primitive: more space substitutions?
 
 expector
     - add binning of pcaps, maybe as an outside tool?
@@ -11,3 +13,12 @@ debugger (aka nanny)
 
 vmware_control (aka daddy)
     - write it ;-)
+
+sessions
+    - graph math to figure out mutation counts
+
+legos
+    - finish ndr_string
+    - ip address
+    - hostname
+    - complete tag (open, data, close)

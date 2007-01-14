@@ -77,7 +77,7 @@ class base_primitive (object):
 class delim (base_primitive):
     def __init__ (self, value, fuzzable=True, name=None):
         '''
-        Represent a delimiter such as :,\r,\n, ,=,>,< etc... Mutations include repetition and exclusion.
+        Represent a delimiter such as :,\r,\n, ,=,>,< etc... Mutations include repetition, substitution and exclusion.
 
         @type  value:    Character
         @param value:    Original value
@@ -96,7 +96,11 @@ class delim (base_primitive):
         self.fuzz_library  = []        # library of fuzz heuristics
         self.mutant_index  = 0         # current mutation number
 
+        #
         # build the library of fuzz heuristics.
+        #
+
+        # repeat the delim a bunch of times.
         self.fuzz_library.append(self.value * 2)
         self.fuzz_library.append(self.value * 5)
         self.fuzz_library.append(self.value * 10)
@@ -105,8 +109,41 @@ class delim (base_primitive):
         self.fuzz_library.append(self.value * 500)
         self.fuzz_library.append(self.value * 1000)
 
-        # try ommitting the delimiter too.
+        # try ommitting the delimiter.
         self.fuzz_library.append("")
+
+        # if the delimiter is a space, try throwing out some tabs
+        if self.value == " ":
+            self.fuzz_library.append("\t")
+            self.fuzz_library.append("\t" * 2)
+            self.fuzz_library.append("\t" * 100)
+
+        # toss in some other common delimiters:
+        self.fuzz_library.append("!")
+        self.fuzz_library.append("@")
+        self.fuzz_library.append("#")
+        self.fuzz_library.append("$")
+        self.fuzz_library.append("%")
+        self.fuzz_library.append("^")
+        self.fuzz_library.append("&")
+        self.fuzz_library.append("*")
+        self.fuzz_library.append("(")
+        self.fuzz_library.append(")")
+        self.fuzz_library.append("-")
+        self.fuzz_library.append("_")
+        self.fuzz_library.append("+")
+        self.fuzz_library.append("=")
+        self.fuzz_library.append(":")
+        self.fuzz_library.append(";")
+        self.fuzz_library.append("'")
+        self.fuzz_library.append("\"")
+        self.fuzz_library.append("/")
+        self.fuzz_library.append("\\")
+        self.fuzz_library.append("?")
+        self.fuzz_library.append("<")
+        self.fuzz_library.append(">")
+        self.fuzz_library.append(".")
+        self.fuzz_library.append(",")
 
 
 ########################################################################################################################
@@ -352,6 +389,13 @@ class string (base_primitive):
             "'sqlattempt1",
             "(sqlattempt2)",
             "OR%201=1",
+            
+            # some binary strings.
+            "\xde\xad\xbe\xef",
+            "\xde\xad\xbe\xef" * 10,
+            "\xde\xad\xbe\xef" * 100,
+            "\xde\xad\xbe\xef" * 1000,
+            "\xde\xad\xbe\xef" * 10000,
         ]
 
         # add some long strings.
