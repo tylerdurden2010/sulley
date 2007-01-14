@@ -1,0 +1,13 @@
+blocks/primitives
+    - address TODOs
+    - add text sizers? ie: content-length from http
+    - implement fixed length padded strings
+
+expector
+    - add binning of pcaps, maybe as an outside tool?
+
+debugger (aka nanny)
+    - write it ;-)
+
+vmware_control (aka daddy)
+    - write it ;-)
