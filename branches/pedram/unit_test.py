@@ -3,3 +3,4 @@
 import unit_tests
 
 unit_tests.blocks.run()
+unit_tests.legos.run()

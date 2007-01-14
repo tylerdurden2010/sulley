@@ -1,18 +1,20 @@
 import pgraph
 
 
+########################################################################################################################
 class connection (pgraph.edge.edge):
     def __init__ (self, src, dst, callback=None):
         # run the parent classes initialization routine first.
-        super(connection, self).__init__(src, dst)
+        pgraph.edge.edge.__init__(self, src, dst)
 
         self.callback = callback
 
 
+########################################################################################################################
 class session (pgraph.graph):
     def __init__ (self):
         # run the parent classes initialization routine first.
-        super(session, self).__init__()
+        pgraph.graph.__init__(self)
 
         self.root       = pgraph.node()
         self.root.name  = "__ROOT_NODE__"
@@ -62,15 +64,13 @@ class session (pgraph.graph):
         if not this_node:
             this_node = self.root
 
-        print "*"*80
-
         for edge in self.edges_from(this_node.id):
             to_send = self.nodes[edge.dst]
 
             if edge.src != self.root.id:
                 path.append(edge)
 
-            print [self.nodes[e.src].name for e in path], "->", to_send.name
+            #print [self.nodes[e.src].name for e in path], "->", to_send.name
 
             while 1:
                 # send out valid requests for each node in the current path.
@@ -79,7 +79,6 @@ class session (pgraph.graph):
                     self.transmit(node, e)
 
                 self.transmit(to_send, edge)
-                print "-"*80
 
                 if not to_send.mutate():
                     break

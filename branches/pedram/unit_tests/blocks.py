@@ -2,6 +2,8 @@ from sulley import *
 
 def run ():
     num_test_cases()
+    blocks.REQUESTS = {}
+    blocks.CURRENT  = None
 
 def num_test_cases ():
     s_initialize("UNIT TEST 1")
@@ -20,7 +22,7 @@ def num_test_cases ():
 
     # count how many mutations we get per primitive type.
     req1 = s_get("UNIT TEST 1")
-    print "MUTATION COUNTS:"
+    print "PRIMITIVE MUTATION COUNTS:"
     print "\tdelim:  %d" % req1.names["delim"].num_mutations()
     print "\tstring: %d" % req1.names["string"].num_mutations()
     print "\tbyte:   %d" % req1.names["byte"].num_mutations()
