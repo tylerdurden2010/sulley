@@ -2,6 +2,8 @@ from sulley import *
 
 def run ():
     num_test_cases()
+    
+    # clear out the requests.
     blocks.REQUESTS = {}
     blocks.CURRENT  = None
 

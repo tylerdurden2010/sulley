@@ -253,7 +253,7 @@ def s_group (name, values):
     blocks.CURRENT.push(group)
 
 
-def s_lego (lego_type, options={}):
+def s_lego (lego_type, value=None, options={}):
     '''
     Legos are pre-built blocks... XXX finish this doc
     '''
@@ -265,7 +265,7 @@ def s_lego (lego_type, options={}):
     if not legos.BIN.has_key(lego_type):
         raise sex.error("INVALID LEGO TYPE SPECIFIED: %s" % lego_type)
 
-    lego = legos.BIN[lego_type](name, blocks.CURRENT, options)
+    lego = legos.BIN[lego_type](name, blocks.CURRENT, value, options)
     blocks.CURRENT.push(lego)
 
 

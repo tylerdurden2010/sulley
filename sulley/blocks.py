@@ -94,6 +94,10 @@ class request (pgraph.node):
 
 
     def render (self):
+        # ensure there are no open blocks lingering.
+        if self.block_stack:
+            raise sex.error("UNCLOSED BLOCK: %s" % self.block_stack[-1].name)
+
         # render every item in the stack.
         for item in self.stack:
             item.render()
