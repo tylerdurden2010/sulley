@@ -253,6 +253,22 @@ def s_group (name, values):
     blocks.CURRENT.push(group)
 
 
+def s_lego (lego_type, options={}):
+    '''
+    Legos are pre-built blocks... XXX finish this doc
+    '''
+
+    # as legos are blocks they must have a name.
+    # generate a unique name for this lego.
+    name = "LEGO_%04d" % len(blocks.CURRENT.names)
+
+    if not legos.BIN.has_key(lego_type):
+        raise sex.error("INVALID LEGO TYPE SPECIFIED: %s" % lego_type)
+
+    lego = legos.BIN[lego_type](name, blocks.CURRENT, options)
+    blocks.CURRENT.push(lego)
+
+
 def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, name=None):
     '''
     Generate a random chunk of data while maintaining a copy of the original. A random length range can be specified.
