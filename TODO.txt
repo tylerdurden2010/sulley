@@ -1,7 +1,4 @@
 blocks/primitives
-    - address TODOs
-    - add text sizers? ie: content-length from http
-    - add text integers?
     - implement fixed length padded strings
     - delim primitive: more space substitutions?
 
@@ -19,6 +16,7 @@ sessions
 
 legos
     - finish ndr_string
-    - ip address
+    - add other ndr types
+    - ip address (with limited string / sep) values.
     - hostname
     - complete tag (open, data, close)

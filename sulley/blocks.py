@@ -131,22 +131,22 @@ class request (pgraph.node):
 
 ########################################################################################################################
 class block:
-    def __init__ (self, name, request, group=None, encoder=None, dep=None, dep_value=None):
+    def __init__ (self, name, request, group=None, encoder=None, dep=None, dep_values=[]):
         '''
         The basic building block. Can contain primitives, sizers, checksums or other blocks.
 
-        @type  name:      String
-        @param name:      Name of the new block
-        @type  request:   s_request
-        @param request:   Request this block belongs to
-        @type  group:     String
-        @param group:     (Optional, def=None) Name of group to associate this block with
-        @type  encoder:   Function Pointer
-        @param encoder:   (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
-        @type  dep:       String
-        @param dep:       (Optional, def=None) Optional primitive whose specific value this block is dependant on
-        @type  dep_value: Mixed
-        @param dep_value: (Optional, def=None) Value that field "dep" must contain for block to be rendered
+        @type  name:       String
+        @param name:       Name of the new block
+        @type  request:    s_request
+        @param request:    Request this block belongs to
+        @type  group:      String
+        @param group:      (Optional, def=None) Name of group to associate this block with
+        @type  encoder:    Function Pointer
+        @param encoder:    (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
+        @type  dep:        String
+        @param dep:        (Optional, def=None) Optional primitive whose specific value this block is dependant on
+        @type  dep_values: List of Mixed Types
+        @param dep_values: (Optional, def=[]) Values that field "dep" may contain for block to be rendered
         '''
 
         self.name          = name
@@ -154,7 +154,7 @@ class block:
         self.group         = group
         self.encoder       = encoder
         self.dep           = dep
-        self.dep_value     = dep_value
+        self.dep_values    = dep_values
 
         self.stack         = []     # block item stack.
         self.rendered      = ""     # rendered block contents.
@@ -227,7 +227,7 @@ class block:
         # if this block is dependant on another field, then manually update that fields value appropriately while we
         # mutate this block. we'll restore the original value of the field prior to continuing.
         if mutated and self.dep:
-            self.request.names[self.dep].value = self.dep_value
+            self.request.names[self.dep].value = self.dep_values[0]
 
 
         # we are done mutating this block.
@@ -274,7 +274,7 @@ class block:
         # if this block is dependant on another field and the value is not met, render nothing.
         #
 
-        if self.dep and self.request.names[self.dep].value != self.dep_value:
+        if self.dep and self.request.names[self.dep].value not in self.dep_values:
             self.rendered = ""
 
         #
@@ -411,7 +411,7 @@ class size:
     user does not need to be wary of this fact.
     '''
 
-    def __init__ (self, block_name, request, length=4, endian="<", format="binary", fuzzable=False, name=None):
+    def __init__ (self, block_name, request, length=4, endian="<", format="binary", signed=False, fuzzable=False, name=None):
         '''
         Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
         currently open blocks.
@@ -426,6 +426,8 @@ class size:
         @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
         @type  format:     String
         @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
+        @type  signed:     Boolean
+        @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
         @type  fuzzable:   Boolean
         @param fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
         @type  name:       String
@@ -437,10 +439,11 @@ class size:
         self.length         = length
         self.endian         = endian
         self.format         = format
+        self.signed         = signed
         self.fuzzable       = fuzzable
         self.name           = name
 
-        self.bit_field      = primitives.bit_field(0, length*8, endian=endian)
+        self.bit_field      = primitives.bit_field(0, length*8, endian=endian, format=format, signed=signed)
         self.rendered       = ""
         self.fuzz_complete  = self.bit_field.fuzz_complete
         self.fuzz_library   = self.bit_field.fuzz_library
