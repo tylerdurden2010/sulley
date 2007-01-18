@@ -319,6 +319,28 @@ def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, na
     blocks.CURRENT.push(random)
 
 
+def s_repeat (value, min_reps, max_reps, fuzzable=True, name=None):
+    '''
+    Cycle the specified value from 0 to min_reps to max_reps counting by one. By default renders to nothing. If you
+    want to render a single default value, preceed the repeat primitive with a static primitive. This primitive is
+    useful for fuzzing overflows in table entries.
+
+    @type  value:    Raw
+    @param value:    Value to repeat
+    @type  min_reps: Integer
+    @param min_reps: Minimum length of random block
+    @type  max_reps: Integer
+    @param max_reps: Maximum length of random block
+    @type  fuzzable: Boolean
+    @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
+    @type  name:     String
+    @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
+    '''
+
+    repeat = primitives.repeat(value, min_reps, max_reps, fuzzable, name)
+    blocks.CURRENT.push(repeat)
+
+
 def s_static (value, name=None):
     '''
     Push a static value onto the current block stack.

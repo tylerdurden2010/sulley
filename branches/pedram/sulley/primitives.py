@@ -8,13 +8,13 @@ class base_primitive (object):
     '''
 
     def __init__ (self):
-        self.fuzz_complete  = False
-        self.fuzz_library   = []
-        self.fuzzable       = True
-        self.mutant_index   = 0
-        self.original_value = None
-        self.rendered       = ""
-        self.value          = None
+        self.fuzz_complete  = False     # this flag is raised when the mutations are exhausted.
+        self.fuzz_library   = []        # library of static fuzz heuristics to cycle through.
+        self.fuzzable       = True      # flag controlling whether or not the given primitive is to be fuzzed.
+        self.mutant_index   = 0         # current mutation index into the fuzz library.
+        self.original_value = None      # original value of primitive.
+        self.rendered       = ""        # rendered value of primitive.
+        self.value          = None      # current value of primitive.
 
 
     def mutate (self):
@@ -295,6 +295,43 @@ class random_data (base_primitive):
 
 
 ########################################################################################################################
+class repeat (base_primitive):
+    def __init__ (self, value, min_reps, max_reps, fuzzable=True, name=None):
+        '''
+        Cycle the specified value from 0 to min_reps to max_reps counting by one. By default renders to nothing. If you
+        want to render a single default value, preceed the repeat primitive with a static primitive. This primitive is
+        useful for fuzzing overflows in table entries.
+
+        @type  value:    Raw
+        @param value:    Value to repeat
+        @type  min_reps: Integer
+        @param min_reps: Minimum length of random block
+        @type  max_reps: Integer
+        @param max_reps: Maximum length of random block
+        @type  fuzzable: Boolean
+        @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
+        @type  name:     String
+        @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
+        '''
+
+        self.value         = self.original_value = ""   # default to nothing!
+        self.min_reps      = min_reps
+        self.max_reps      = max_reps
+        self.fuzzable      = fuzzable
+        self.name          = name
+
+        self.rendered      = ""        # rendered value
+        self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
+        self.fuzz_library  = []        # library of fuzz heuristics
+        self.mutant_index  = 0         # current mutation number
+
+
+        # create the fuzz library.
+        for i in xrange(min_reps, max_reps + 1):
+            self.fuzz_library.append(value * i)
+
+
+########################################################################################################################
 class static (base_primitive):
     def __init__ (self, value, name=None):
         '''
@@ -373,7 +410,7 @@ class string (base_primitive):
             self.value * 2,
             self.value * 10,
             self.value * 100,
-            
+
             # strings ripped from spike (and some others I added)
             "/.:/"  + "A"*5000 + "\x00\x00",
             "/.../" + "A"*5000 + "\x00\x00",
@@ -421,7 +458,7 @@ class string (base_primitive):
             "\xde\xad\xbe\xef" * 1000,
             "\xde\xad\xbe\xef" * 10000,
             "\x00"             * 1000,
-            
+
             # miscellaneous.
             "\r\n" * 100,
         ]
@@ -456,7 +493,7 @@ class string (base_primitive):
         self.add_long_strings("\x14")
         self.add_long_strings("\xFE")   # expands to 4 characters under utf16
         self.add_long_strings("\xFF")   # expands to 4 characters under utf16
-        
+
         # add some long strings with null bytes thrown in the middle of it.
         for length in [128, 256, 1024, 2048, 4096, 32767, 0xFFFF]:
             s = "B" * length
