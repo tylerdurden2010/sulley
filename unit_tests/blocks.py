@@ -1,13 +1,16 @@
 from sulley import *
 
 def run ():
-    num_test_cases()
-    
+    groups_and_num_test_cases()
+    dependencies()
+
     # clear out the requests.
     blocks.REQUESTS = {}
     blocks.CURRENT  = None
 
-def num_test_cases ():
+
+########################################################################################################################
+def groups_and_num_test_cases ():
     s_initialize("UNIT TEST 1")
     s_size("BLOCK", length=4, name="sizer")
     s_group("group", values=["\x01", "\x05", "\x0a", "\xff"])
@@ -63,3 +66,21 @@ def num_test_cases ():
     # assert that the number of block mutations in request 2 is len(group.values) (4) times that of request 1.
     req2 = s_get("UNIT TEST 2")
     assert(req2.names["BLOCK"].num_mutations() == req1.names["BLOCK"].num_mutations() * 4)
+
+
+########################################################################################################################
+def dependencies ():
+    s_initialize("DEP TEST 1")
+    s_group("group", values=["1", "2"])
+
+    if s_block_start("ONE", dep="group", dep_values=["1"]):
+        s_static("ONE" * 100)
+        s_block_end()
+
+    if s_block_start("TWO", dep="group", dep_values=["2"]):
+        s_static("TWO" * 100)
+        s_block_end()
+
+    assert(s_render().find("TWO") == -1)
+    s_mutate()
+    assert(s_render().find("ONE") == -1)

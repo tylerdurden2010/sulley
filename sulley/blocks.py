@@ -131,22 +131,26 @@ class request (pgraph.node):
 
 ########################################################################################################################
 class block:
-    def __init__ (self, name, request, group=None, encoder=None, dep=None, dep_values=[]):
+    def __init__ (self, name, request, group=None, encoder=None, dep=None, dep_value=None, dep_values=[], dep_compare="=="):
         '''
         The basic building block. Can contain primitives, sizers, checksums or other blocks.
 
-        @type  name:       String
-        @param name:       Name of the new block
-        @type  request:    s_request
-        @param request:    Request this block belongs to
-        @type  group:      String
-        @param group:      (Optional, def=None) Name of group to associate this block with
-        @type  encoder:    Function Pointer
-        @param encoder:    (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
-        @type  dep:        String
-        @param dep:        (Optional, def=None) Optional primitive whose specific value this block is dependant on
-        @type  dep_values: List of Mixed Types
-        @param dep_values: (Optional, def=[]) Values that field "dep" may contain for block to be rendered
+        @type  name:        String
+        @param name:        Name of the new block
+        @type  request:     s_request
+        @param request:     Request this block belongs to
+        @type  group:       String
+        @param group:       (Optional, def=None) Name of group to associate this block with
+        @type  encoder:     Function Pointer
+        @param encoder:     (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
+        @type  dep:         String
+        @param dep:         (Optional, def=None) Optional primitive whose specific value this block is dependant on
+        @type  dep_value:   Mixed
+        @param dep_value:   (Optional, def=None) Value that field "dep" must contain for block to be rendered
+        @type  dep_values:  List of Mixed Types
+        @param dep_values:  (Optional, def=[]) Values that field "dep" may contain for block to be rendered
+        @type  dep_compare: String
+        @param dep_compare: (Optional, def="==") Comparison method to use on dependency (==, !=, >, >=, <, <=)
         '''
 
         self.name          = name
@@ -154,7 +158,9 @@ class block:
         self.group         = group
         self.encoder       = encoder
         self.dep           = dep
+        self.dep_value     = dep_value
         self.dep_values    = dep_values
+        self.dep_compare   = dep_compare
 
         self.stack         = []     # block item stack.
         self.rendered      = ""     # rendered block contents.
@@ -227,7 +233,13 @@ class block:
         # if this block is dependant on another field, then manually update that fields value appropriately while we
         # mutate this block. we'll restore the original value of the field prior to continuing.
         if mutated and self.dep:
-            self.request.names[self.dep].value = self.dep_values[0]
+            # if a list of values was specified, use the first item in the list.
+            if self.dep_values:
+                self.request.names[self.dep].value = self.dep_values[0]
+
+            # if a list of values was not specified, assume a single value is present.
+            else:
+                self.request.names[self.dep].value = self.dep_value
 
 
         # we are done mutating this block.
@@ -270,33 +282,65 @@ class block:
         structure.
         '''
 
+        # add the completed block to the request dictionary.
+        self.request.closed_blocks[self.name] = self
+
         #
         # if this block is dependant on another field and the value is not met, render nothing.
         #
 
-        if self.dep and self.request.names[self.dep].value not in self.dep_values:
-            self.rendered = ""
+        if self.dep:
+            if self.dep_compare == "==":
+                if self.dep_values and self.request.names[self.dep].value not in self.dep_values:
+                    self.rendered = ""
+                    return
+
+                elif self.request.names[self.dep].value != self.dep_value:
+                    self.rendered = ""
+                    return
+
+            if self.dep_compare == "!=":
+                if self.dep_values and self.request.names[self.dep].value in self.dep_values:
+                    self.rendered = ""
+                    return
+
+                elif self.request.names[self.dep].value == self.dep_value:
+                    self.rendered = ""
+                    return
+
+            if self.dep_compare == ">" and self.dep_value <= self.request.names[self.dep].value:
+                self.rendered = ""
+                return
+
+            if self.dep_compare == ">=" and self.dep_value < self.request.names[self.dep].value:
+                self.rendered = ""
+                return
+
+            if self.dep_compare == "<" and self.dep_value >= self.request.names[self.dep].value:
+                self.rendered = ""
+                return
+
+            if self.dep_compare == "<=" and self.dep_value > self.request.names[self.dep].value:
+                self.rendered = ""
+                return
 
         #
-        # otherwise, render as usual.
+        # otherwise, render and encode as usual.
         #
-        else:
-            # recursively render the items on the stack.
-            for item in self.stack:
-                item.render()
 
-            # now collect and merge the rendered items.
-            self.rendered = ""
+        # recursively render the items on the stack.
+        for item in self.stack:
+            item.render()
 
-            for item in self.stack:
-                self.rendered += item.rendered
+        # now collect and merge the rendered items.
+        self.rendered = ""
+
+        for item in self.stack:
+            self.rendered += item.rendered
 
         # if an encoder was attached to this block, call it.
         if self.encoder:
             self.rendered = self.encoder(self.rendered)
-
-        # add the completed block to the request dictionary.
-        self.request.closed_blocks[self.name] = self
 
         # the block is now closed, clear out all the entries from the request back splice dictionary.
         if self.request.callbacks.has_key(self.name):
@@ -483,12 +527,7 @@ class size:
         if self.block_name in self.request.closed_blocks:
             block                = self.request.closed_blocks[self.block_name]
             self.bit_field.value = len(block.rendered)
-
-            # render the size dependant on the format specified.
-            if self.format == "ascii":
-                self.rendered = "%d" % self.bit_field.value
-            else:
-                self.rendered = self.bit_field.render()
+            self.rendered        = self.bit_field.render()
 
         # otherwise, add this checksum block to the factories callback list.
         else:

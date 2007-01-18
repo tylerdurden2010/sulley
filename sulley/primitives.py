@@ -100,25 +100,30 @@ class delim (base_primitive):
         # build the library of fuzz heuristics.
         #
 
-        # repeat the delim a bunch of times.
-        self.fuzz_library.append(self.value * 2)
-        self.fuzz_library.append(self.value * 5)
-        self.fuzz_library.append(self.value * 10)
-        self.fuzz_library.append(self.value * 25)
-        self.fuzz_library.append(self.value * 100)
-        self.fuzz_library.append(self.value * 500)
-        self.fuzz_library.append(self.value * 1000)
+        # if the default delim is not blank, repeat it a bunch of times.
+        if self.value:
+            self.fuzz_library.append(self.value * 2)
+            self.fuzz_library.append(self.value * 5)
+            self.fuzz_library.append(self.value * 10)
+            self.fuzz_library.append(self.value * 25)
+            self.fuzz_library.append(self.value * 100)
+            self.fuzz_library.append(self.value * 500)
+            self.fuzz_library.append(self.value * 1000)
 
         # try ommitting the delimiter.
         self.fuzz_library.append("")
 
-        # if the delimiter is a space, try throwing out some tabs
+        # if the delimiter is a space, try throwing out some tabs.
         if self.value == " ":
             self.fuzz_library.append("\t")
             self.fuzz_library.append("\t" * 2)
             self.fuzz_library.append("\t" * 100)
 
         # toss in some other common delimiters:
+        self.fuzz_library.append(" ")
+        self.fuzz_library.append("\t")
+        self.fuzz_library.append("\t " * 100)
+        self.fuzz_library.append("\t\r\n" * 100)
         self.fuzz_library.append("!")
         self.fuzz_library.append("@")
         self.fuzz_library.append("#")
@@ -134,6 +139,8 @@ class delim (base_primitive):
         self.fuzz_library.append("+")
         self.fuzz_library.append("=")
         self.fuzz_library.append(":")
+        self.fuzz_library.append(": " * 100)
+        self.fuzz_library.append(":7" * 100)
         self.fuzz_library.append(";")
         self.fuzz_library.append("'")
         self.fuzz_library.append("\"")
@@ -144,6 +151,11 @@ class delim (base_primitive):
         self.fuzz_library.append(">")
         self.fuzz_library.append(".")
         self.fuzz_library.append(",")
+        self.fuzz_library.append("\r")
+        self.fuzz_library.append("\n")
+        self.fuzz_library.append("\r\n" * 64)
+        self.fuzz_library.append("\r\n" * 128)
+        self.fuzz_library.append("\r\n" * 512)
 
 
 ########################################################################################################################
@@ -356,6 +368,13 @@ class string (base_primitive):
         self.mutant_index  = 0         # current mutation number
         self.fuzz_library  = \
         [
+            # omission and repetition.
+            "",
+            self.value * 2,
+            self.value * 10,
+            self.value * 100,
+            
+            # strings ripped from spike (and some others I added)
             "/.:/"  + "A"*5000 + "\x00\x00",
             "/.../" + "A"*5000 + "\x00\x00",
             "/.../.../.../.../.../.../.../.../.../.../",
@@ -368,14 +387,19 @@ class string (base_primitive):
             "/." * 5000,
             "!@#$%%^#$%#$@#$%$$@#$%^^**(()",
             "%01%02%03%04%0a%0d%0aADSF",
+            "%01%02%03@%04%0a%0d%0aADSF",
             "/%00/",
             "%00/",
             "%00",
             "%u0000",
 
             # format strings.
-            "%n" * 128,
-            "%s" * 128,
+            "%n"     * 100,
+            "%n"     * 500,
+            "\"%n\"" * 500,
+            "%s"     * 100,
+            "%s"     * 500,
+            "\"%s\"" * 500,
 
             # command injection.
             "|touch /tmp/SULLEY",
@@ -396,12 +420,18 @@ class string (base_primitive):
             "\xde\xad\xbe\xef" * 100,
             "\xde\xad\xbe\xef" * 1000,
             "\xde\xad\xbe\xef" * 10000,
+            "\x00"             * 1000,
+            
+            # miscellaneous.
+            "\r\n" * 100,
         ]
 
         # add some long strings.
         self.add_long_strings("A")
         self.add_long_strings("B")
         self.add_long_strings("1")
+        self.add_long_strings("2")
+        self.add_long_strings("3")
         self.add_long_strings("<")
         self.add_long_strings(">")
         self.add_long_strings("'")
@@ -410,6 +440,7 @@ class string (base_primitive):
         self.add_long_strings("\\")
         self.add_long_strings("?")
         self.add_long_strings("=")
+        self.add_long_strings("a=")
         self.add_long_strings("&")
         self.add_long_strings(".")
         self.add_long_strings("(")
@@ -425,6 +456,12 @@ class string (base_primitive):
         self.add_long_strings("\x14")
         self.add_long_strings("\xFE")   # expands to 4 characters under utf16
         self.add_long_strings("\xFF")   # expands to 4 characters under utf16
+        
+        # add some long strings with null bytes thrown in the middle of it.
+        for length in [128, 256, 1024, 2048, 4096, 32767, 0xFFFF]:
+            s = "B" * length
+            s = s[:len(s)/2] + "\x00" + s[len(s)/2:]
+            self.fuzz_library.append(s)
 
 
     def add_long_strings (self, sequence):
