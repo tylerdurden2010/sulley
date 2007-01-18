@@ -492,6 +492,7 @@ class size:
         self.fuzz_complete  = self.bit_field.fuzz_complete
         self.fuzz_library   = self.bit_field.fuzz_library
         self.mutant_index   = self.bit_field.mutant_index
+        self.value          = self.bit_field.value
 
 
     def mutate (self):
