@@ -2,11 +2,13 @@ from sulley import *
 
 def run ():
     signed_tests()
-    
+
     # clear out the requests.
     blocks.REQUESTS = {}
     blocks.CURRENT  = None
 
+
+########################################################################################################################
 def signed_tests ():
     s_initialize("UNIT TEST 1")
     s_byte(0,        format="ascii", signed=True, name="byte_1")

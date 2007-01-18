@@ -3,7 +3,9 @@
 import SimpleXMLRPCServer
 import xmlrpclib
 import threading
+import getopt
 import time
+import sys
 
 import pcapy
 import impacket
@@ -39,24 +41,22 @@ class pcap_thread (threading.Thread):
 
 ########################################################################################################################
 class expector_xmlrpc_server:
-    def __init__ (self, device, filter="", log_path="."):
+    def __init__ (self, device, filter=""):
         self.device      = device
         self.filter      = filter
-        self.log_path    = log_path
-
         self.pcap        = None
         self.pcap_thread = None
 
         self.log("XML-RPC server initialized:")
         self.log("\t device:   %s" % self.device)
         self.log("\t filter:   %s" % self.filter)
-        self.log("\t log path: %s" % self.log_path)
+        self.log("\t log path: %s" % log_path)
         self.log()
         self.log("Awaiting requests...")
         self.log()
 
 
-    def capture (self, test_case_number):
+    def capture (self, test_case_number, log_path="."):
         self.log("Initializing capture for test cast #%d" % test_case_number)
         try:
             # if there is a previous capture thread, kill it.
@@ -68,7 +68,7 @@ class expector_xmlrpc_server:
             self.pcap.setfilter(self.filter)
 
             # instantiate the capture thread.
-            pcap_log_path = "%s/%d.pcap" % (self.log_path, test_case_number)
+            pcap_log_path = "%s/%d.pcap" % (log_path, test_case_number)
             self.pcap_thread = pcap_thread(self.pcap, pcap_log_path)
             self.pcap_thread.start()
 
@@ -83,7 +83,7 @@ class expector_xmlrpc_server:
         print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
 
 
-    def retrieve (self, test_case_number):
+    def retrieve (self, test_case_number, log_path="."):
         self.log("Retrieving capture for test case #%d" % test_case_number)
 
         pcap_log_path = "%s/%d.pcap" % (self.log_path, test_case_number)
@@ -117,8 +117,18 @@ lan     = "\\Device\\NPF_{588034E3-0E08-407E-8AD6-136B2407FBB3}"
 giga    = "\\Device\\NPF_{22AC54B4-1B06-45C5-A7E0-C911714C4A12}"
 bridge  = "\\Device\\NPF_{B49864CA-513F-4CAC-B735-064C1410B3F6}"
 
-servlet = expector_xmlrpc_server(giga, "src or dst port 80", "pcaps")
+i = 0
+for dev in pcapy.findalldevs():
+    if sys.platform.startswith("win"):
+        import _winreg
+        key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\ControlSet002\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}\{B49864CA-513F-4CAC-B735-064C1410B3F6}\Connection")
+    print "[%d] %s" % (i, dev)
+    i += 1
+
+"""
+servlet = expector_xmlrpc_server(giga)
 
 xmlrpc_server = SimpleXMLRPCServer.SimpleXMLRPCServer(("localhost", 8888), logRequests=False)
 xmlrpc_server.register_instance(servlet)
 xmlrpc_server.serve_forever()
+"""

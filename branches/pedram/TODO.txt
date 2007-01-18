@@ -1,22 +1,66 @@
+file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00002677.html
+file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00002678.html
+file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00002703.html
+file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00026092.html
+
+UTF-8 overflows:
+    file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00007056.html
+
+how will i handle "table filling"?:
+    file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00002759.html
+    perhaps add a s_repeat:
+    
+    if s_block_start("table entry"):
+        s_string("XXXX")
+        ...
+        s_block_end()
+    
+    # defaults to none, mutates up to 200 times the valid entry of table entry.
+    s_repeat(from=0, to=200, block_name="table entry")
+    
+
+general
+    - examine codenomicon VoIP fuzzer test cases and see if we are missing anything important
+    - review codenomicon whitepaper
+    - build VoIP fuzzer and compare with codenomicon (would make for a great talk slide, code coverage comparison)
+    - add SPIKE aliases and test if it's actually SPIKE compatible.
+
 blocks/primitives
     - implement fixed length padded strings
+    - implement string size reduction for UDP protocol?? (or does it just span multiple packets)?
     - delim primitive: more space substitutions?
 
 expector
     - add binning of pcaps, maybe as an outside tool?
+    - add mkdir calls to prefix of pcap path
 
 debugger (aka nanny)
     - write it ;-)
+    - how will i implement the feedback loop?
 
 vmware_control (aka daddy)
     - write it ;-)
 
 sessions
     - graph math to figure out mutation counts
+    - "honing", subsets of mutation ranges to locate the actual source of the crash
 
 legos
     - finish ndr_string
     - add other ndr types
-    - ip address (with limited string / sep) values.
-    - hostname
+    - ip address (with limited entries from string / delim fuzz libraries) values.
+        - multiple dots
+        - dots with interspersed spaces (file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00000524.html)
+        - file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00000526.html
+        - file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00000527.html
+        - file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00000529.html
+        - negative numbers!
+        - big numbers
+        - long zero prefixes (check out the fuzz cases after 530)
+        - automatically revert to valid target ip address
+    - dns hostname
+        - replace dots with string length
+        - for fuzzing, try and create infinite recursion
     - complete tag (open, data, close)
+    - datetime lego
+        - file:///C:/Documents%20and%20Settings/pamini/Desktop/fuzzing/info/00007134.html

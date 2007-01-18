@@ -14,7 +14,11 @@ LITTLE_ENDIAN   = "<"
 
 def s_get (name=None):
     '''
-    Return the request with the specified name or the current request if name is not specified.
+    Return the request with the specified name or the current request if name is not specified. Use this to switch from
+    global function style request manipulation to direct object manipulation. Example::
+
+        req = s_get("HTTP BASIC")
+        print req.num_mutations()
 
     @type  name: String
     @param name: (Optional, def=None) Name of request to return or current request if name is None.
@@ -50,7 +54,11 @@ def s_initialize (name):
 
 def s_mutate ():
     '''
-    Mutate the current request.
+    Mutate the current request and return False if mutations are exhausted, in which case the request has been reverted
+    back to its normal form.
+
+    @rtype:  Boolean
+    @return: True on mutation success, False if mutations exhausted.
     '''
 
     return blocks.CURRENT.mutate()
@@ -59,6 +67,9 @@ def s_mutate ():
 def s_render ():
     '''
     Render out and return the entire contents of the current request.
+
+    @rtype:  Raw
+    @return: Rendered contents
     '''
 
     return blocks.CURRENT.render()
@@ -82,7 +93,7 @@ def s_switch (name):
 ### BLOCK MANAGEMENT
 ########################################################################################################################
 
-def s_block_start (name, group=None, encoder=None, dep=None, dep_value=None):
+def s_block_start (name, group=None, encoder=None, dep=None, dep_value=None, dep_values=[], dep_compare="=="):
     '''
     Open a new block under the current request. This routine always returns True so you can make your fuzzer pretty
     with indenting::
@@ -92,19 +103,23 @@ def s_block_start (name, group=None, encoder=None, dep=None, dep_value=None):
             if s_block_start("body"):
                 ...
 
-    @type  name:      String
-    @param name:      Name of block being opened
-    @type  group:     String
-    @param group:     (Optional, def=None) Name of group to associate this block with
-    @type  encoder:   Function Pointer
-    @param encoder:   (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
-    @type  dep:       String
-    @param dep:       (Optional, def=None) Optional primitive whose specific value this block is dependant on
-    @type  dep_value: Mixed
-    @param dep_value: (Optional, def=None) Value that field "dep" must contain for block to be rendered
+    @type  name:        String
+    @param name:        Name of block being opened
+    @type  group:       String
+    @param group:       (Optional, def=None) Name of group to associate this block with
+    @type  encoder:     Function Pointer
+    @param encoder:     (Optional, def=None) Optional pointer to a function to pass rendered data to prior to return
+    @type  dep:         String
+    @param dep:         (Optional, def=None) Optional primitive whose specific value this block is dependant on
+    @type  dep_value:   Mixed
+    @param dep_value:   (Optional, def=None) Value that field "dep" must contain for block to be rendered
+    @type  dep_values:  List of Mixed Types
+    @param dep_values:  (Optional, def=[]) Values that field "dep" may contain for block to be rendered
+    @type  dep_compare: String
+    @param dep_compare: (Optional, def="==") Comparison method to use on dependency (==, !=, >, >=, <, <=)
     '''
 
-    block = blocks.block(name, blocks.CURRENT, group, encoder, dep, dep_value)
+    block = blocks.block(name, blocks.CURRENT, group, encoder, dep, dep_value, dep_values, dep_compare)
     blocks.CURRENT.push(block)
 
     return True
@@ -112,7 +127,10 @@ def s_block_start (name, group=None, encoder=None, dep=None, dep_value=None):
 
 def s_block_end (name=None):
     '''
-    Close the last opened block.
+    Close the last opened block. Optionally specify the name of the block being closed (purely for aesthetic purposes).
+
+    @type  name: String
+    @param name: (Optional, def=None) Name of block to closed.
     '''
 
     blocks.CURRENT.pop()
@@ -147,6 +165,8 @@ def s_size (block_name, length=4, endian="<", format="binary", signed=False, fuz
     '''
     Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
     currently open blocks.
+
+    @see: Aliases: s_sizer()
 
     @type  block_name: String
     @param block_name: Name of block to apply sizer to
@@ -303,6 +323,8 @@ def s_static (value, name=None):
     '''
     Push a static value onto the current block stack.
 
+    @see: Aliases: s_dunno(), s_raw()
+
     @type  value: Raw
     @param value: Raw static data
     @type  name:  String
@@ -339,6 +361,8 @@ def s_bit_field (value, width, max_num=None, endian="<", format="binary", signed
     '''
     Push a variable length bit field onto the current block stack.
 
+    @see: Aliases: s_bit(), s_bits()
+
     @type  value:      Integer
     @param value:      Default integer value
     @type  width:      Integer
@@ -365,6 +389,8 @@ def s_byte (value, max_num=None, endian="<", format="binary", signed=False, full
     '''
     Push a byte onto the current block stack.
 
+    @see: Aliases: s_char()
+
     @type  value:      Integer
     @param value:      Default integer value
     @type  endian:     Character
@@ -388,6 +414,8 @@ def s_byte (value, max_num=None, endian="<", format="binary", signed=False, full
 def s_word (value, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
     '''
     Push a word onto the current block stack.
+
+    @see: Aliases: s_short()
 
     @type  value:      Integer
     @param value:      Default integer value
@@ -413,6 +441,8 @@ def s_dword (value, max_num=None, endian="<", format="binary", signed=False, ful
     '''
     Push a double word onto the current block stack.
 
+    @see: Aliases: s_long(), s_int()
+
     @type  value:      Integer
     @param value:      Default integer value
     @type  endian:     Character
@@ -436,6 +466,8 @@ def s_dword (value, max_num=None, endian="<", format="binary", signed=False, ful
 def s_qword (value, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
     '''
     Push a quad word onto the current block stack.
+
+    @see: Aliases: s_double()
 
     @type  value:      Integer
     @param value:      Default integer value
@@ -461,12 +493,12 @@ def s_qword (value, max_num=None, endian="<", format="binary", signed=False, ful
 ### ALIASES
 ########################################################################################################################
 
-s_dunno  = s_raw = s_static
+s_dunno  = s_raw    = s_static
 s_sizer  = s_size
-s_bits   = s_bit_field
+s_bit    = s_bits   = s_bit_field
 s_char   = s_byte
 s_short  = s_word
-s_long   = s_int = s_dword
+s_long   = s_int    = s_dword
 s_double = s_qword
 
 
