@@ -20,6 +20,8 @@ def s_get (name=None):
         req = s_get("HTTP BASIC")
         print req.num_mutations()
 
+    The selected request is also set as the default current. (ie: s_switch(name) is implied).
+
     @type  name: String
     @param name: (Optional, def=None) Name of request to return or current request if name is None.
 
@@ -29,6 +31,9 @@ def s_get (name=None):
 
     if not name:
         return blocks.CURRENT
+
+    # ensure this gotten request is the new current.
+    s_switch(name)
 
     if not blocks.REQUESTS.has_key(name):
         raise sex.error("blocks.REQUESTS NOT FOUND: %s" % name)
@@ -62,6 +67,17 @@ def s_mutate ():
     '''
 
     return blocks.CURRENT.mutate()
+
+
+def s_num_mutations ():
+    '''
+    Determine the number of repetitions we will be making.
+
+    @rtype:  Integer
+    @return: Number of mutated forms this primitive can take.
+    '''
+
+    return blocks.CURRENT.num_mutations()
 
 
 def s_render ():
@@ -159,6 +175,32 @@ def s_checksum (block_name, algorithm="crc32", length=0, endian="<", name=None):
 
     checksum = blocks.checksum(block_name, blocks.CURRENT, algorithm, length, endian, name)
     blocks.CURRENT.push(checksum)
+
+
+def s_repeat (block_name, min_reps, max_reps, step=1, fuzzable=True, name=None):
+    '''
+    Repeat the rendered contents of the specified block cycling from min_reps to max_reps counting by step. By
+    default renders to nothing. This block modifier is useful for fuzzing overflows in table entries. This block
+    modifier MUST come after the block it is being applied to.
+
+    @see: Aliases: s_repeater()
+
+    @type  block_name: String
+    @param block_name: Name of block to apply sizer to
+    @type  min_reps:   Integer
+    @param min_reps:   Minimum length of random block
+    @type  max_reps:   Integer
+    @param max_reps:   Maximum length of random block
+    @type  step:       Integer
+    @param step:       (Optional, def=1) Step count between min and max reps
+    @type  fuzzable:   Boolean
+    @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+    @type  name:       String
+    @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+    '''
+
+    repeat = blocks.repeat(block_name, blocks.CURRENT, min_reps, max_reps, step, fuzzable, name)
+    blocks.CURRENT.push(repeat)
 
 
 def s_size (block_name, length=4, endian="<", format="binary", signed=False, fuzzable=False, name=None):
@@ -317,28 +359,6 @@ def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, na
 
     random = primitives.random_data(value, min_length, max_length, num_mutations, fuzzable, name)
     blocks.CURRENT.push(random)
-
-
-def s_repeat (value, min_reps, max_reps, fuzzable=True, name=None):
-    '''
-    Cycle the specified value from 0 to min_reps to max_reps counting by one. By default renders to nothing. If you
-    want to render a single default value, preceed the repeat primitive with a static primitive. This primitive is
-    useful for fuzzing overflows in table entries.
-
-    @type  value:    Raw
-    @param value:    Value to repeat
-    @type  min_reps: Integer
-    @param min_reps: Minimum length of random block
-    @type  max_reps: Integer
-    @param max_reps: Maximum length of random block
-    @type  fuzzable: Boolean
-    @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
-    @type  name:     String
-    @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
-    '''
-
-    repeat = primitives.repeat(value, min_reps, max_reps, fuzzable, name)
-    blocks.CURRENT.push(repeat)
 
 
 def s_static (value, name=None):
@@ -515,20 +535,32 @@ def s_qword (value, max_num=None, endian="<", format="binary", signed=False, ful
 ### ALIASES
 ########################################################################################################################
 
-s_dunno  = s_raw    = s_static
-s_sizer  = s_size
-s_bit    = s_bits   = s_bit_field
-s_char   = s_byte
-s_short  = s_word
-s_long   = s_int    = s_dword
-s_double = s_qword
-
+s_dunno    = s_raw    = s_static
+s_sizer    = s_size
+s_bit      = s_bits   = s_bit_field
+s_char     = s_byte
+s_short    = s_word
+s_long     = s_int    = s_dword
+s_double   = s_qword
+s_repeater = s_repeat
 
 ########################################################################################################################
 ### MISC
 ########################################################################################################################
 
 def s_hex_dump (data, addr=0):
+    '''
+    Return the hex dump of the supplied data starting at the offset address specified.
+
+    @type  data: Raw
+    @param data: Data to show hex dump of
+    @type  addr: Integer
+    @param addr: (Optional, def=0) Offset to start displaying hex dump addresses from
+
+    @rtype:  String
+    @return: Hex dump of raw data
+    '''
+
     dump = slice = ""
 
     for byte in data:

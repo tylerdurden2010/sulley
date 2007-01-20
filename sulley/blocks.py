@@ -47,6 +47,13 @@ class request (pgraph.node):
 
 
     def num_mutations (self):
+        '''
+        Determine the number of repetitions we will be making.
+
+        @rtype:  Integer
+        @return: Number of mutated forms this primitive can take.
+        '''
+
         num_mutations = 0
 
         for item in self.stack:
@@ -254,6 +261,13 @@ class block:
 
 
     def num_mutations (self):
+        '''
+        Determine the number of repetitions we will be making.
+
+        @rtype:  Integer
+        @return: Number of mutated forms this primitive can take.
+        '''
+
         num_mutations = 0
 
         for item in self.stack:
@@ -399,6 +413,16 @@ class checksum:
 
 
     def checksum (self, data):
+        '''
+        Calculate and return the checksum (in raw bytes) over the supplied data.
+
+        @type  data: Raw
+        @param data: Rendered block data to calculate checksum over.
+
+        @rtype:  Raw
+        @return: Checksum.
+        '''
+
         if type(self.algorithm) is str:
             if self.algorithm == "crc32":
                 return struct.pack(self.endian+"L", zlib.crc32(data))
@@ -433,6 +457,10 @@ class checksum:
 
 
     def render (self):
+        '''
+        Calculate the checksum of the specified block using the specified algorithm.
+        '''
+
         self.rendered = ""
 
         # if the target block for this sizer is already closed, render the checksum.
@@ -446,6 +474,122 @@ class checksum:
                 self.request.callbacks[self.block_name] = []
 
             self.request.callbacks[self.block_name].append(self)
+
+
+########################################################################################################################
+class repeat:
+    '''
+    This block type is kind of special in that it is a hybrid between a block and a primitive (it can be fuzzed). The
+    user does not need to be wary of this fact.
+    '''
+
+    def __init__ (self, block_name, request, min_reps, max_reps, step=1, fuzzable=True, name=None):
+        '''
+        Repeat the rendered contents of the specified block cycling from min_reps to max_reps counting by step. By
+        default renders to nothing. This block modifier is useful for fuzzing overflows in table entries. This block
+        modifier MUST come after the block it is being applied to.
+
+        @type  block_name: String
+        @param block_name: Name of block to apply sizer to
+        @type  request:    s_request
+        @param request:    Request this block belongs to
+        @type  min_reps:   Integer
+        @param min_reps:   Minimum length of random block
+        @type  max_reps:   Integer
+        @param max_reps:   Maximum length of random block
+        @type  step:       Integer
+        @param step:       (Optional, def=1) Step count between min and max reps
+        @type  fuzzable:   Boolean
+        @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+        @type  name:       String
+        @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+        '''
+
+        self.block_name    = block_name
+        self.request       = request
+        self.min_reps      = min_reps
+        self.max_reps      = max_reps
+        self.step          = step
+        self.fuzzable      = fuzzable
+        self.name          = name
+
+        self.value         = self.original_value = ""   # default to nothing!
+        self.rendered      = ""                         # rendered value
+        self.fuzz_complete = False                      # flag if this primitive has been completely fuzzed
+        self.fuzz_library  = []                         # library of static fuzz heuristics to cycle through.
+        self.mutant_index  = 0                          # current mutation number
+
+        if self.block_name not in self.request.names:
+            raise sex.error("CAN NOT ADD REPEATER FOR NON-EXISTANT BLOCK: %s" % self.block_name)
+
+
+        # propogate the fuzz library with the repetition counts.
+        self.fuzz_library = range(self.min_reps, self.max_reps + 1, self.step)
+
+
+    def mutate (self):
+        '''
+        Mutate the primitive by stepping through the fuzz library, return False on completion.
+
+        @rtype:  Boolean
+        @return: True on success, False otherwise.
+        '''
+
+        # if the target block for this sizer is not closed, raise an exception.
+        if self.block_name not in self.request.closed_blocks:
+            raise sex.error("CAN NOT APPLY REPEATER TO UNCLOSED BLOCK: %s" % self.block_name)
+
+        # if we've ran out of mutations, raise the completion flag.
+        if self.mutant_index == self.num_mutations():
+            self.fuzz_complete = True
+
+        # if fuzzing was disabled or complete, and mutate() is called, ensure the original value is restored.
+        if not self.fuzzable or self.fuzz_complete:
+            self.value = self.original_value
+            return False
+
+        # set the current value as a multiple of the rendered block based on the current fuzz library count.
+        block      = self.request.closed_blocks[self.block_name]
+        self.value = block.rendered * self.fuzz_library[self.mutant_index]
+
+        # increment the mutation count.
+        self.mutant_index += 1
+
+        return True
+
+
+    def num_mutations (self):
+        '''
+        Determine the number of repetitions we will be making.
+
+        @rtype:  Integer
+        @return: Number of mutated forms this primitive can take.
+        '''
+
+        return len(self.fuzz_library)
+
+
+    def render (self):
+        '''
+        Nothing fancy on render, simply return the value.
+        '''
+
+        # if the target block for this sizer is not closed, raise an exception.
+        if self.block_name not in self.request.closed_blocks:
+            raise sex.error("CAN NOT APPLY REPEATER TO UNCLOSED BLOCK: %s" % self.block_name)
+
+        self.rendered = self.value
+        return self.rendered
+
+
+    def reset (self):
+        '''
+        Reset the fuzz state of this primitive.
+        '''
+
+        self.fuzz_complete  = False
+        self.mutant_index   = 0
+        self.value          = self.original_value
 
 
 ########################################################################################################################
@@ -524,13 +668,13 @@ class size:
 
         self.rendered = ""
 
-        # if the target block for this sizer is already closed, render the checksum.
+        # if the target block for this sizer is already closed, render the size.
         if self.block_name in self.request.closed_blocks:
             block                = self.request.closed_blocks[self.block_name]
             self.bit_field.value = len(block.rendered)
             self.rendered        = self.bit_field.render()
 
-        # otherwise, add this checksum block to the factories callback list.
+        # otherwise, add this sizer block to the factories callback list.
         else:
             if not self.request.callbacks.has_key(self.block_name):
                 self.request.callbacks[self.block_name] = []

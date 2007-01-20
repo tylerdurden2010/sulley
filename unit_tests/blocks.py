@@ -3,6 +3,7 @@ from sulley import *
 def run ():
     groups_and_num_test_cases()
     dependencies()
+    repeaters()
 
     # clear out the requests.
     blocks.REQUESTS = {}
@@ -84,3 +85,37 @@ def dependencies ():
     assert(s_render().find("TWO") == -1)
     s_mutate()
     assert(s_render().find("ONE") == -1)
+
+
+########################################################################################################################
+def repeaters ():
+    s_initialize("REP TEST 1")
+    if s_block_start("BLOCK"):
+        s_delim(">", name="delim", fuzzable=False)
+        s_string("pedram", name="string", fuzzable=False)
+        s_byte(0xde, name="byte", fuzzable=False)
+        s_word(0xdead, name="word", fuzzable=False)
+        s_dword(0xdeadbeef, name="dword", fuzzable=False)
+        s_qword(0xdeadbeefdeadbeef, name="qword", fuzzable=False)
+        s_random(0, 5, 10, 100, name="random", fuzzable=False)
+        s_block_end()
+    s_repeat("BLOCK", min_reps=5, max_reps=15, step=5)
+
+    data   = s_render()
+    length = len(data)
+
+    s_mutate()
+    data = s_render()
+    assert(len(data) == length + length * 5)
+
+    s_mutate()
+    data = s_render()
+    assert(len(data) == length + length * 10)
+
+    s_mutate()
+    data = s_render()
+    assert(len(data) == length + length * 15)
+
+    s_mutate()
+    data = s_render()
+    assert(len(data) == length)
