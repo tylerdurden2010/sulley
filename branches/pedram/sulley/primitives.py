@@ -240,7 +240,7 @@ class random_data (base_primitive):
         @param name:          (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
 
-        self.value         = self.original_value = value
+        self.value         = self.original_value = str(value)
         self.min_length    = min_length
         self.max_length    = max_length
         self.max_mutations = max_mutations
@@ -292,43 +292,6 @@ class random_data (base_primitive):
         '''
 
         return self.max_mutations
-
-
-########################################################################################################################
-class repeat (base_primitive):
-    def __init__ (self, value, min_reps, max_reps, fuzzable=True, name=None):
-        '''
-        Cycle the specified value from 0 to min_reps to max_reps counting by one. By default renders to nothing. If you
-        want to render a single default value, preceed the repeat primitive with a static primitive. This primitive is
-        useful for fuzzing overflows in table entries.
-
-        @type  value:    Raw
-        @param value:    Value to repeat
-        @type  min_reps: Integer
-        @param min_reps: Minimum length of random block
-        @type  max_reps: Integer
-        @param max_reps: Maximum length of random block
-        @type  fuzzable: Boolean
-        @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
-        @type  name:     String
-        @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
-        '''
-
-        self.value         = self.original_value = ""   # default to nothing!
-        self.min_reps      = min_reps
-        self.max_reps      = max_reps
-        self.fuzzable      = fuzzable
-        self.name          = name
-
-        self.rendered      = ""        # rendered value
-        self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
-        self.fuzz_library  = []        # library of fuzz heuristics
-        self.mutant_index  = 0         # current mutation number
-
-
-        # create the fuzz library.
-        for i in xrange(min_reps, max_reps + 1):
-            self.fuzz_library.append(value * i)
 
 
 ########################################################################################################################
