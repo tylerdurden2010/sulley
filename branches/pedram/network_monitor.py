@@ -15,10 +15,11 @@ import impacket.ImpactDecoder
 ########################################################################################################################
 class pcap_thread (threading.Thread):
     def __init__ (self, pcap, pcap_save_path):
-        self.pcap    = pcap
-        self.decoder = None
-        self.dumper  = self.pcap.dump_open(pcap_save_path)
-        self.active  = True
+        self.pcap       = pcap
+        self.decoder    = None
+        self.dumper     = self.pcap.dump_open(pcap_save_path)
+        self.active     = True
+        self.data_bytes = 0
 
         if pcap.datalink() == pcapy.DLT_EN10MB:
             self.decoder = impacket.ImpactDecoder.EthDecoder()
@@ -37,23 +38,34 @@ class pcap_thread (threading.Thread):
 
     def packet_handler (self, header, data):
         self.dumper.dump(header, data)
+        self.data_bytes += len(data)
 
 
 ########################################################################################################################
-class expector_xmlrpc_server:
-    def __init__ (self, device, filter=""):
+class network_monitor_xmlrpc_server:
+    def __init__ (self, device, filter="", log_level=1):
         self.device      = device
         self.filter      = filter
+        self.log_level   = log_level
         self.pcap        = None
         self.pcap_thread = None
 
-        self.log("XML-RPC server initialized:")
+        self.log("Network Monitor XML-RPC server initialized:")
         self.log("\t device:   %s" % self.device)
         self.log("\t filter:   %s" % self.filter)
-        self.log("\t log path: %s" % log_path)
         self.log()
         self.log("Awaiting requests...")
         self.log()
+
+
+    def __stop (self):
+        if self.pcap_thread:
+            self.log("Stopping active packet capture.")
+
+            self.pcap_thread.active = False
+            self.pcap_thread        = None
+
+        return True
 
 
     def capture (self, test_case_number, log_path="."):
@@ -61,7 +73,7 @@ class expector_xmlrpc_server:
         try:
             # if there is a previous capture thread, kill it.
             if self.pcap_thread:
-                self.stop()
+                self.__stop()
 
             # open the capture device and set the BPF filter.
             self.pcap = pcapy.open_live(self.device, -1, 1, 100)
@@ -79,8 +91,16 @@ class expector_xmlrpc_server:
         return True
 
 
-    def log (self, msg=""):
-        print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
+    def log (self, msg="", level=1):
+        '''
+        If the log flag is raised, print the specified message to screen.
+
+        @type  msg: String
+        @param msg: Message to log
+        '''
+
+        if self.log_level >= level:
+            print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
 
 
     def retrieve (self, test_case_number, log_path="."):
@@ -102,16 +122,6 @@ class expector_xmlrpc_server:
         return True
 
 
-    def stop (self):
-        if self.pcap_thread:
-            self.log("Stopping active packet capture.")
-
-            self.pcap_thread.active = False
-            self.pcap_thread        = None
-
-        return True
-
-
 ########################################################################################################################
 lan     = "\\Device\\NPF_{588034E3-0E08-407E-8AD6-136B2407FBB3}"
 giga    = "\\Device\\NPF_{22AC54B4-1B06-45C5-A7E0-C911714C4A12}"
@@ -125,10 +135,8 @@ for dev in pcapy.findalldevs():
     print "[%d] %s" % (i, dev)
     i += 1
 
-"""
-servlet = expector_xmlrpc_server(giga)
+servlet = network_monitor_xmlrpc_server(giga)
 
-xmlrpc_server = SimpleXMLRPCServer.SimpleXMLRPCServer(("localhost", 8888), logRequests=False)
+xmlrpc_server = SimpleXMLRPCServer.SimpleXMLRPCServer(("0.0.0.0", 26001), logRequests=False)
 xmlrpc_server.register_instance(servlet)
 xmlrpc_server.serve_forever()
-"""
