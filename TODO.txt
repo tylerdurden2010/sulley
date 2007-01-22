@@ -13,6 +13,7 @@ general
     - build VoIP fuzzer and compare with codenomicon (would make for a great talk slide, code coverage comparison)
     - add SPIKE aliases and test if it's actually SPIKE compatible.
     - PDML parser
+    - change all class/function definitions to match session.target
 
 blocks/primitives
     - implement fixed length padded strings

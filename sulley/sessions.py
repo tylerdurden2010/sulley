@@ -14,28 +14,43 @@ class target:
     Basic data structure
     '''
 
-    def __init__ (self, host, port, netmon_host=None, netmon_port=26001, procmon_host=None, procmon_port=26002):
+    def __init__ (self, host, port, **kwargs):
         '''
-        @type  host:         String
-        @param host:         Hostname or IP address of target system
-        @type  port:         Integer
-        @param port:         Port of target service
-        @type  netmon_host:  String
-        @param netmon_host:  (Optional, def=None) Hostname or IP address of network monitor for this target
-        @type  netmon_port:  Integer
-        @param netmon_port:  (Optional, def=26001) Listening port of network monitor on this target
-        @type  procmon_host: String
-        @param procmon_host: (Optional, def=None) Hostname or IP address of process monitor for this target
-        @type  procmon_port: Integer
-        @param procmon_port: (Optional, def=26002) Listening port of process monitor on this target
+        @type  host:             String
+        @param host:             Hostname or IP address of target system
+        @type  port:             Integer
+        @param port:             Port of target service
+        @type  netmon_host:      String
+        @param netmon_host:      (Optional, def=None) Hostname or IP address of network monitor for this target
+        @type  netmon_port:      Integer
+        @param netmon_port:      (Optional, def=26001) Listening port of network monitor on this target
+        @type  procmon_host:     String
+        @param procmon_host:     (Optional, def=None) Hostname or IP address of process monitor for this target
+        @type  procmon_port:     Integer
+        @param procmon_port:     (Optional, def=26002) Listening port of process monitor on this target
+        @type  proc_name:        String
+        @param proc_name:        (Required for procmon) Target process name to monitor
+        @type  restart_commands: List
+        @param restart_commands: (Required for procmon) List of commands to issue to restart target process
+        @type  restart_interval: Integer
+        @param restart_interval: (Optional, def=0) Restart the target process after n test cases
         '''
 
-        self.host         = host
-        self.port         = port
-        self.netmon_host  = netmon_host
-        self.netmon_port  = netmon_port
-        self.procmon_host = procmon_host
-        self.procmon_port = procmon_port
+        self.host              = host
+        self.port              = port
+        self.netmon_host       = kwargs.get("netmon_host",      None)
+        self.netmon_port       = kwargs.get("netmon_port",      26001)
+        self.procmon_host      = kwargs.get("procmon_host",     None)
+        self.procmon_port      = kwargs.get("procmon_port",     26002)
+        self.proc_name         = kwargs.get("proc_name",        None)
+        self.restart_commands  = kwargs.get("restart_commands", None)
+        self.restart_interval  = kwargs.get("restart_interval", 0)
+        
+        # placeholders for established XML-RPC tunnels.
+        self.netmon            = None
+        self.has_netmon        = False
+        self.procmon           = None
+        self.has_procmon       = False
 
 
 ########################################################################################################################
@@ -68,28 +83,25 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, session_name, skip=0, sleep_time=3.0, log_level=1, proto="tcp", timeout=5.0, web_port=26000):
+    def __init__ (self, skip=0, sleep_time=3.0, log_level=0, proto="tcp", timeout=5.0, web_port=26000):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
-        @type  session_name: String
-        @param session_name: Name of this fuzz session. Used in creation of log files, expector pcaps and debugger traces
-        @type  skip:         Integer
-        @param skip:         (Optional, def=0) Number of test cases to skip
-        @type  sleep_time:   Float
-        @param sleep_time:   (Optional, def=3.0) Time to sleep in between tests
-        @type  log_level:    Integer
-        @param log_level:    (Optional, def=1) Set the log level, higher number == more log messages
-        @type  proto:        String
-        @param proto:        (Optional, def="tcp") Communication protocol
-        @type  timeout:      Float
-        @param timeout:      (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
+        @type  skip:       Integer
+        @param skip:       (Optional, def=0) Number of test cases to skip
+        @type  sleep_time: Float
+        @param sleep_time: (Optional, def=3.0) Time to sleep in between tests
+        @type  log_level:  Integer
+        @param log_level:  (Optional, def=1) Set the log level, higher number == more log messages
+        @type  proto:      String
+        @param proto:      (Optional, def="tcp") Communication protocol
+        @type  timeout:    Float
+        @param timeout:    (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
         '''
 
         # run the parent classes initialization routine first.
         pgraph.graph.__init__(self)
 
-        self.session_name        = session_name
         self.skip                = skip
         self.sleep_time          = sleep_time
         self.log_level           = log_level
@@ -101,6 +113,7 @@ class session (pgraph.graph):
         self.total_mutant_index  = 0
         self.fuzz_node           = None
         self.targets             = []
+        self.results             = []
         self.pause               = False
 
         if self.proto == "tcp":
@@ -292,15 +305,24 @@ class session (pgraph.graph):
             self.log("current fuzz path: %s" % current_path)
             self.log("fuzzed %d of %d total cases" % (self.total_mutant_index, self.total_num_mutations))
 
+            # step through each available target and fuzz them in parallel, splitting the test cases between them.
+            #for target in self.targets:
+            # XXX - TODO - complete parallel fuzzing, will likely have to thread out each target
+            target = self.targets[0]
+
+            # if a network or process monitor was specified, establish XML-RPC connections to them.
+            # XXX - move this to a separate routine.
+            if target.procmon_host:
+                target.procmon = xmlrpclib.ServerProxy("http://%s:%d" % (target.procmon_host, target.procmon_port))
+                target.procmon.set_proc_name(target.proc_name)
+                target.procmon.set_restart_commands(target.restart_commands)
+                target.procmon.set_restart_interval(target.restart_interval)
+                target.has_procmon = True
+
             # loop through all possible mutations of the fuzz node.
             while 1:
                 # if we need to pause, do so.
                 self.__pause()
-
-                # step through each available target and fuzz them in parallel, splitting the test cases between them.
-                #for target in self.targets:
-                # XXX - TODO - complete parallel fuzzing, will likely have to thread out each target
-                target = self.targets[0]
 
                 # if we have exhausted the mutations of the fuzz node, break out of the while(1).
                 # note: when mutate() returns False, the node has been reverted to the default (valid) state.
@@ -314,6 +336,10 @@ class session (pgraph.graph):
                 if self.total_mutant_index > self.skip:
                     self.log("fuzzing %d of %d" % (self.fuzz_node.mutant_index, num_mutations))
 
+                    # instruct the debugger that we are about to send a new fuzz.
+                    if target.has_procmon:
+                        target.procmon.record(self.total_mutant_index)
+
                     # establish a connection to the target.
                     try:
                         sock = socket.socket(socket.AF_INET, self.proto)
@@ -321,6 +347,7 @@ class session (pgraph.graph):
                         sock.connect((target.host, target.port))
                     except:
                         raise sex.error("FAILED CONNECTING TO %s:%d" % (target.host, target.port))
+                        # XXX - add better error handling
 
                     # if the user registered a pre-send function, pass it the sock and let it do the deed.
                     self.pre_send(sock)
@@ -341,6 +368,13 @@ class session (pgraph.graph):
 
                     # delay in between test cases.
                     time.sleep(self.sleep_time)
+                    
+                    # check if our fuzz crashed the target.
+                    if target.has_procmon:
+                        if target.procmon.is_target_destroyed():
+                            self.log(">>>>>>>>>>>>>>>>>>> THE SHIT HIT THE FAN ON #%d<<<<<<<<<<<<<<" % self.total_mutant_index)
+                            # add result to self.results list
+                            # self.results[self.total_mutant_index] = XXXXX
 
             # recursively fuzz the remainder of the nodes in the session graph.
             self.fuzz(self.fuzz_node, path)
@@ -533,21 +567,21 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
                             body
                             {
                                 background-color: #000000;
-                                font-family:      Arial, Helvetica, sans-serif;;
+                                font-family:      Arial, Helvetica, sans-serif;
                                 font-size:        12px;
                                 color:            #FFFFFF;
                             }
 
                             td
                             {
-                                font-family:      Arial, Helvetica, sans-serif;;
+                                font-family:      Arial, Helvetica, sans-serif;
                                 font-size:        12px;
                                 color:            #A0B0B0;
                             }
 
                             .fixed
                             {
-                                font-family:      Arial, Helvetica, sans-serif;;
+                                font-family:      Courier New;
                                 font-size:        12px;
                                 color:            #A0B0B0;
                             }
