@@ -9,9 +9,24 @@ import pgraph
 import sex
 
 ########################################################################################################################
+class extension_shell:
+    def __init__ (self, *args, **kwargs):
+        pass
+
+    def alive (self):
+        return False
+
+    def post_send (self, *args, **kwargs):
+        return True
+
+    def pre_send (self, *args, **kwargs):
+        return True
+
+
+########################################################################################################################
 class target:
     '''
-    Basic data structure
+    Target descriptor container.
     '''
 
     def __init__ (self, host, port, **kwargs):
@@ -45,12 +60,21 @@ class target:
         self.proc_name         = kwargs.get("proc_name",        None)
         self.restart_commands  = kwargs.get("restart_commands", None)
         self.restart_interval  = kwargs.get("restart_interval", 0)
-        
+
         # placeholders for established XML-RPC tunnels.
-        self.netmon            = None
-        self.has_netmon        = False
-        self.procmon           = None
-        self.has_procmon       = False
+        self.netmon            = extension_shell()
+        self.procmon           = extension_shell()
+
+
+    def xmlrpc_connect (self):
+        if self.procmon_host:
+            self.procmon = xmlrpclib.ServerProxy("http://%s:%d" % (self.procmon_host, self.procmon_port))
+            self.procmon.set_proc_name(self.proc_name)
+            self.procmon.set_restart_commands(self.restart_commands)
+            self.procmon.set_restart_interval(self.restart_interval)
+
+        if self.netmon_host:
+            pass
 
 
 ########################################################################################################################
@@ -83,7 +107,7 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, skip=0, sleep_time=3.0, log_level=0, proto="tcp", timeout=5.0, web_port=26000):
+    def __init__ (self, skip=0, sleep_time=3.0, log_level=2, proto="tcp", timeout=5.0, web_port=26000):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
@@ -92,7 +116,7 @@ class session (pgraph.graph):
         @type  sleep_time: Float
         @param sleep_time: (Optional, def=3.0) Time to sleep in between tests
         @type  log_level:  Integer
-        @param log_level:  (Optional, def=1) Set the log level, higher number == more log messages
+        @param log_level:  (Optional, def=2) Set the log level, higher number == more log messages
         @type  proto:      String
         @param proto:      (Optional, def="tcp") Communication protocol
         @type  timeout:    Float
@@ -113,7 +137,8 @@ class session (pgraph.graph):
         self.total_mutant_index  = 0
         self.fuzz_node           = None
         self.targets             = []
-        self.results             = []
+        self.netmon_results      = {}
+        self.procmon_results     = {}
         self.pause               = False
 
         if self.proto == "tcp":
@@ -157,27 +182,29 @@ class session (pgraph.graph):
                 break
 
 
-    def __transmit (self, sock, node, edge):
+    def __transmit (self, sock, node, edge, target):
         '''
         Render and transmit a node, process callbacks accordingly. This routine is called internally by fuzz().
 
-        @type  sock: Socket
-        @param sock: Socket to transmit node on
-        @type  node: Request (Node)
-        @param node: Request/Node to transmit
-        @type  edge: Connection (pgraph.edge)
-        @param edge: Last edge along the current fuzz path to "node"
+        @type  sock:   Socket
+        @param sock:   Socket to transmit node on
+        @type  node:   Request (Node)
+        @param node:   Request/Node to transmit
+        @type  edge:   Connection (pgraph.edge)
+        @param edge:   Last edge along the current fuzz path to "node"
+        @type  target: session.target
+        @param target: Target we are transmitting to
         '''
 
         # if the edge has a callback, process it.
         if edge.callback:
             edge.callback(self, node, edge, self.last_recv)
 
-        self.log("xmitting: [%d]" % (node.id), level=2)
+        self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
 
         try:
             rendered = node.render()
-            self.log(self.hex_dump(rendered), level=3)
+            self.log(self.hex_dump(rendered), level=5)
             sock.send(rendered)
 
             if self.proto == "tcp":
@@ -185,14 +212,15 @@ class session (pgraph.graph):
                 self.last_recv = sock.recv(10000)
             else:
                 self.last_recv = ""
-        except socket.timeout:
-            self.log("socket timeout, sleeping for a while")
-            time.sleep(10)
         except:
-            self.log("socket send failed, sleeping for a while")
-            time.sleep(10)
+            if target.has_procmon:
+                self.log("socket send failed or timed out, restart target")
+                target.procmon.restart_target()
+            else:
+                self.log("socket send failed or timed out, sleeping for a while")
+                time.sleep(10)
 
-        self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=2)
+        self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=5)
 
 
     def add_node (self, node):
@@ -250,6 +278,9 @@ class session (pgraph.graph):
         @param dst:      Destination request name or request node
         @type  callback: Function
         @param callback: (Optional, def=None) Callback function to pass received data to between node xmits
+
+        @rtype:  pgraph.edge
+        @return: The edge between the src and dst.
         '''
 
         # if source or destination is a name, resolve the actual node.
@@ -269,6 +300,8 @@ class session (pgraph.graph):
         # create an edge between the two nodes and add it to the graph.
         edge = connection(src.id, dst.id, callback)
         self.add_edge(edge)
+
+        return edge
 
 
     def fuzz (self, this_node=None, path=[]):
@@ -302,43 +335,38 @@ class session (pgraph.graph):
             current_path  = " -> ".join([self.nodes[e.src].name for e in path])
             current_path += " -> %s" % self.fuzz_node.name
 
-            self.log("current fuzz path: %s" % current_path)
-            self.log("fuzzed %d of %d total cases" % (self.total_mutant_index, self.total_num_mutations))
+            self.log("current fuzz path: %s" % current_path, 2)
+            self.log("fuzzed %d of %d total cases" % (self.total_mutant_index, self.total_num_mutations), 2)
 
             # step through each available target and fuzz them in parallel, splitting the test cases between them.
             #for target in self.targets:
             # XXX - TODO - complete parallel fuzzing, will likely have to thread out each target
             target = self.targets[0]
 
-            # if a network or process monitor was specified, establish XML-RPC connections to them.
-            # XXX - move this to a separate routine.
-            if target.procmon_host:
-                target.procmon = xmlrpclib.ServerProxy("http://%s:%d" % (target.procmon_host, target.procmon_port))
-                target.procmon.set_proc_name(target.proc_name)
-                target.procmon.set_restart_commands(target.restart_commands)
-                target.procmon.set_restart_interval(target.restart_interval)
-                target.has_procmon = True
+            # establish XML-RPC connections.
+            target.xmlrpc_connect()
 
             # loop through all possible mutations of the fuzz node.
-            while 1:
+            done_with_fuzz_node = False
+            while not done_with_fuzz_node:
                 # if we need to pause, do so.
                 self.__pause()
 
                 # if we have exhausted the mutations of the fuzz node, break out of the while(1).
                 # note: when mutate() returns False, the node has been reverted to the default (valid) state.
                 if not self.fuzz_node.mutate():
-                    break
+                    self.log("all possible mutations for current fuzz node exhausted", 2)
+                    done_with_fuzz_node = True
 
                 # make a record in the session that a mutation was made.
                 self.total_mutant_index += 1
 
                 # if we don't need to skip the current test case.
                 if self.total_mutant_index > self.skip:
-                    self.log("fuzzing %d of %d" % (self.fuzz_node.mutant_index, num_mutations))
+                    self.log("fuzzing %d of %d" % (self.fuzz_node.mutant_index, num_mutations), 2)
 
                     # instruct the debugger that we are about to send a new fuzz.
-                    if target.has_procmon:
-                        target.procmon.record(self.total_mutant_index)
+                    target.procmon.pre_send(self.total_mutant_index)
 
                     # establish a connection to the target.
                     try:
@@ -346,8 +374,11 @@ class session (pgraph.graph):
                         sock.settimeout(self.timeout)
                         sock.connect((target.host, target.port))
                     except:
-                        raise sex.error("FAILED CONNECTING TO %s:%d" % (target.host, target.port))
-                        # XXX - add better error handling
+                        if target.procmon.alive():
+                            self.log("failed connecting to %s:%d, restarting target" % (target.host, target.port))
+                            target.procmon.restart_target()
+                        else:
+                            raise sex.error("FAILED CONNECTING TO %s:%d" % (target.host, target.port))
 
                     # if the user registered a pre-send function, pass it the sock and let it do the deed.
                     self.pre_send(sock)
@@ -355,10 +386,10 @@ class session (pgraph.graph):
                     # send out valid requests for each node in the current path up to the node we are fuzzing.
                     for e in path:
                         node = self.nodes[e.src]
-                        self.__transmit(sock, node, e)
+                        self.__transmit(sock, node, e, target)
 
                     # now send the current node we are fuzzing.
-                    self.__transmit(sock, self.fuzz_node, edge)
+                    self.__transmit(sock, self.fuzz_node, edge, target)
 
                     # if the user registered a post-send function, pass it the sock and let it do the deed.
                     self.post_send(sock)
@@ -368,13 +399,11 @@ class session (pgraph.graph):
 
                     # delay in between test cases.
                     time.sleep(self.sleep_time)
-                    
+
                     # check if our fuzz crashed the target.
-                    if target.has_procmon:
-                        if target.procmon.is_target_destroyed():
-                            self.log(">>>>>>>>>>>>>>>>>>> THE SHIT HIT THE FAN ON #%d<<<<<<<<<<<<<<" % self.total_mutant_index)
-                            # add result to self.results list
-                            # self.results[self.total_mutant_index] = XXXXX
+                    if not target.procmon.post_send():
+                        self.log("test case #%d caused an access violation" % self.total_mutant_index)
+                        self.procmon_results[self.total_mutant_index] = target.procmon.crash_synopsis
 
             # recursively fuzz the remainder of the nodes in the session graph.
             self.fuzz(self.fuzz_node, path)
