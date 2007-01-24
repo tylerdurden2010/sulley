@@ -15,6 +15,13 @@ from pydbg.defines import *
 
 import utils
 
+ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
+USAGE = "USAGE: process_monitor.py"                                                               \
+        "\n    <-c|--crash_bin FILENAME> filename to serialize crash bin class to"                 \
+        "\n    [-i|--ignore_pid PID]     ignore this PID when searching for the target process"    \
+        "\n    [-l|--log_level LEVEL]    log level (default 1), increase for more verbosity"
+
+
 ########################################################################################################################
 class debugger_thread (threading.Thread):
     def __init__ (self, process_monitor, proc_name, test_number, ignore_pid=None):
@@ -115,8 +122,17 @@ class debugger_thread (threading.Thread):
 
 ########################################################################################################################
 class process_monitor_xmlrpc_server:
-    def __init__ (self, record_file, ignore_pid=None, log_level=1):
-        self.record_file      = record_file
+    def __init__ (self, crash_filename, ignore_pid=None, log_level=1):
+        '''
+        @type  crash_filename: String
+        @param crash_filename: Name of file to (un)serialize crash bin to/from
+        @type  ignore_pid:     Integer
+        @param ignore_pid:     (Optional, def=None) Ignore this PID when searching for the target process
+        @type  log_level:      Integer
+        @param log_level:      (Optional, def=1) Log output level, increase for more verbosity
+        '''
+
+        self.crash_filename   = crash_filename
         self.ignore_pid       = ignore_pid
         self.log_level        = log_level
 
@@ -129,12 +145,12 @@ class process_monitor_xmlrpc_server:
 
         # restore any previously recorded crashes.
         try:
-            self.crash_bin.import_file(self.record_file)
+            self.crash_bin.import_file(self.crash_filename)
         except:
             pass
 
         self.log("Process Monitor XML-RPC server initialized:")
-        self.log("\t record file: %s" % self.record_file)
+        self.log("\t record file: %s" % self.crash_filename)
         self.log("\t # records:   %d" % len(self.crash_bin.bins))
         self.log("\t log level:   %d" % self.log_level)
         self.log("awaiting requests...")
@@ -150,6 +166,10 @@ class process_monitor_xmlrpc_server:
 
 
     def alive (self):
+        '''
+        Returns True. Useful for XML-RPC clients who want to see if the XML-RPC connection is still alive.
+        '''
+
         return True
 
 
@@ -167,9 +187,20 @@ class process_monitor_xmlrpc_server:
             return self.debugger_thread.synopsis
 
 
+    def get_bin_keys (self):
+        return self.crash_bin.bins.keys()
+
+
+    def get_bin (self, bin):
+        if not self.crash_bin.bins.has_key(bin):
+            return False
+
+        return self.crash_bin.bins[bin]
+
+
     def log (self, msg="", level=1):
         '''
-        If the log flag is raised, print the specified message to screen.
+        If the supplied message falls under the current log level, print the specified message to screen.
 
         @type  msg: String
         @param msg: Message to log
@@ -184,7 +215,7 @@ class process_monitor_xmlrpc_server:
 
     def post_send (self):
         '''
-        Return True if the target is still active, False otherwise.
+        Check on the status of the target. Return True if the target is still active, False otherwise.
         '''
 
         av = self.debugger_thread.access_violation
@@ -194,7 +225,7 @@ class process_monitor_xmlrpc_server:
             self.restart_target()
 
         # serialize the crash bin to disk.
-        self.crash_bin.export_file(self.record_file)
+        self.crash_bin.export_file(self.crash_filename)
 
         bins    = len(self.crash_bin.bins)
         crashes = 0
@@ -208,6 +239,11 @@ class process_monitor_xmlrpc_server:
 
 
     def pre_send (self, test_number):
+        '''
+        Ensure the debugger thread is operational and increment the test count. If the restart interval is reached,
+        restart the target process before continuing.
+        '''
+
         self.log("pre_send(%d)" % test_number, 10)
 
         # if we don't already have a debugger thread, instantiate and start one now.
@@ -229,6 +265,10 @@ class process_monitor_xmlrpc_server:
 
 
     def restart_target (self):
+        '''
+        Kill the debugger thread and restart the target process by sequentially executing the self.restart_commands[].
+        '''
+
         # kill the debugger thread.
         self.__kill_debugger_thread()
 
@@ -273,16 +313,36 @@ class process_monitor_xmlrpc_server:
 
 
 ########################################################################################################################
-# XXX - TODO - add getopt for log path, ignore_pid and log level.
-servlet = process_monitor_xmlrpc_server("trend_server_protect.crashbin", ignore_pid=None, log_level=500)
 
-def error (request, client_address):
+# parse command line options.
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "c:i:l:", ["crash_bin=", "ignore_pid=", "log_level="])
+except getopt.GetoptError:
+    ERR(USAGE)
+
+crash_bin = ignore_pid = None
+log_level = 1
+
+for opt, arg in opts:
+    if opt in ("-c", "--crash_bin"):   crash_bin  = arg
+    if opt in ("-i", "--ignore_pid"):  ignore_pid = int(arg)
+    if opt in ("-l", "--log_level"):   log_level  = int(arg)
+
+if not crash_bin:
+    ERR(USAGE)
+
+# spawn the XML-RPC servlet.
+servlet = process_monitor_xmlrpc_server(crash_bin, ignore_pid, log_level)
+
+# define a custom error routine for XML-RPC exceptions.
+def xmlrpc_server_error (request, client_address):
     print "shit hit the fan!"
     print request
     print client_address
     pass
 
+# spawn a new XML-RPC server container, register our servlet and serve forever.
 xmlrpc_server = SimpleXMLRPCServer.SimpleXMLRPCServer(("0.0.0.0", 26002), logRequests=False)
-xmlrpc_server.handle_error = error
+xmlrpc_server.handle_error = xmlrpc_server_error
 xmlrpc_server.register_instance(servlet)
 xmlrpc_server.serve_forever()

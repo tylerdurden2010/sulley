@@ -74,7 +74,7 @@ class target:
             self.procmon.set_restart_interval(self.restart_interval)
 
         if self.netmon_host:
-            pass
+            self.netmon = xmlrpclib.ServerProxy("http://%s:%d" % (self.netmon_host, self.netmon_port))
 
 
 ########################################################################################################################
@@ -158,19 +158,6 @@ class session (pgraph.graph):
         self.add_node(self.root)
 
 
-    def __fuzz_init (self):
-        '''
-        Called by fuzz() on first run (not on recursive re-entry) to initialize variables, web interface, etc...
-        '''
-
-        self.total_mutant_index  = 0
-        self.total_num_mutations = self.num_mutations()
-
-        # spawn the web interface.
-        t = web_interface_thread(self)
-        t.start()
-
-
     def __pause (self):
         '''
         '''
@@ -252,15 +239,20 @@ class session (pgraph.graph):
         self.targets.append(target)
 
 
-    def connect (self, src, dst, callback=None):
+    def connect (self, src, dst=None, callback=None):
         '''
         Create a connection between the two requests (nodes) and register an optional callback to process in between
         transmissions of the source and destination request. Leverage this functionality to handle situations such as
         challenge response systems. The session class maintains a top level node that all initial requests must be
         connected to. Example::
 
-            sess = sessions.session(target=("127.0.0.1", 80))
+            sess = sessions.session()
             sess.connect(sess.root, s_get("HTTP"))
+
+        If given only a single parameter, sess.connect() will default to attaching the supplied node to the root node.
+        This is a convenient alias and is identical to the second line from the above example::
+
+            sess.connect(s_get("HTTP"))
 
         If you register callback method, it must follow this prototype::
 
@@ -282,6 +274,11 @@ class session (pgraph.graph):
         @rtype:  pgraph.edge
         @return: The edge between the src and dst.
         '''
+
+        # if only a source was provided, then make it the destination and set the source to the root node.
+        if not dst:
+            dst = src
+            src = self.root
 
         # if source or destination is a name, resolve the actual node.
         if type(src) is str:
@@ -318,7 +315,7 @@ class session (pgraph.graph):
         # if no node is specified, then we start from the root node and initialize the session.
         if not this_node:
             this_node = self.root
-            self.__fuzz_init()
+            self.server_init()
 
         # step through every edge from the current node.
         for edge in self.edges_from(this_node.id):
@@ -365,8 +362,9 @@ class session (pgraph.graph):
                 if self.total_mutant_index > self.skip:
                     self.log("fuzzing %d of %d" % (self.fuzz_node.mutant_index, num_mutations), 2)
 
-                    # instruct the debugger that we are about to send a new fuzz.
+                    # instruct the debugger/sniffer that we are about to send a new fuzz.
                     target.procmon.pre_send(self.total_mutant_index)
+                    target.netmon.pre_send(self.total_mutant_index)
 
                     # establish a connection to the target.
                     try:
@@ -402,8 +400,16 @@ class session (pgraph.graph):
 
                     # check if our fuzz crashed the target.
                     if not target.procmon.post_send():
-                        self.log("test case #%d caused an access violation" % self.total_mutant_index)
+                        self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
                         self.procmon_results[self.total_mutant_index] = target.procmon.crash_synopsis
+
+                    # see how many bytes the sniffer recorded.
+                    bytes = target.netmon.post_send()
+
+                    # if netmon is not connected, the shell class container returns True and not an integer.
+                    if type(bytes) is int:
+                        self.log("netmon captured %d bytes for test case #%d" % (bytes, self.total_mutant_index))
+                        self.netmon_results[self.total_mutant_index] = bytes
 
             # recursively fuzz the remainder of the nodes in the session graph.
             self.fuzz(self.fuzz_node, path)
@@ -543,6 +549,19 @@ class session (pgraph.graph):
         pass
 
 
+    def server_init (self):
+        '''
+        Called by fuzz() on first run (not on recursive re-entry) to initialize variables, web interface, etc...
+        '''
+
+        self.total_mutant_index  = 0
+        self.total_num_mutations = self.num_mutations()
+
+        # spawn the web interface.
+        t = web_interface_thread(self)
+        t.start()
+
+
 ########################################################################################################################
 class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server):
@@ -627,7 +646,7 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
                         </style>
                     </head>
                     <body>
-                    <table border=0 cellpadding=0 cellspacing=0 width="100%%" height="100%%"><tr><td align=center valign=center>
+                    <center>
                     <table border=0 cellpadding=5 cellspacing=0 width=600>
                     <!-- begin bounding table -->
 
@@ -672,7 +691,7 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
 
                     <!-- end bounding table -->
                     </table>
-                    </table>
+                    </center>
                     </body>
                     </html>
                    """

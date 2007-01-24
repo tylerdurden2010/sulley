@@ -10,6 +10,7 @@ import s_utils
 
 import struct
 
+# crap ass trend xor "encryption" routine for control manager (20901)
 def trend_xor_encode (str):
     '''
     Simple bidirectional XOR "encryption" routine used by this service.
@@ -19,10 +20,10 @@ def trend_xor_encode (str):
 
     # pad to 4 byte boundary.
     pad = 4 - (len(str) % 4)
-    
+
     if pad == 4:
         pad = 0
-    
+
     str += "\x00" * pad
 
     while str:
@@ -35,6 +36,7 @@ def trend_xor_encode (str):
     return ret
 
 
+# crap ass trend xor "encryption" routine for control manager (20901)
 def trend_xor_decode (str):
     key = 0xA8534344
     ret = ""
@@ -50,7 +52,13 @@ def trend_xor_decode (str):
     return ret
 
 
-########################################################################################################################    
+# dce rpc request encoder used for trend server protect 5168 RPC service.
+# opnum is always zero.
+def rpc_request_encoder (data):
+    return s_utils.dce_rpc_request(0, data)
+
+
+########################################################################################################################
 s_initialize("20901")
 
 # dword 1, error: 0x10000001, do something:0x10000002, 0x10000003 (>0x10000002)
@@ -90,17 +98,17 @@ if s_block_start("body", encoder=trend_xor_encode):
 
     # repeat string3 a bunch of times.
     s_repeat("repeat me", min_reps=100, max_reps=1000, step=50)
-    
+
     s_block_end("body")
 
 
-########################################################################################################################    
-s_initialize("5168: 0xa")
+########################################################################################################################
+s_initialize("5168: 0xa RPC")
 
 # // opcode: 0x00, address: 0x65741030
 # // uuid: 25288888-bd5b-11d1-9d53-0080c83a5c2c
 # // version: 1.0
-# 
+#
 # error_status_t rpc_opnum_0 (
 # [in] handle_t arg_1,                          // not sent on wire
 # [in] long trend_req_num,
@@ -110,48 +118,22 @@ s_initialize("5168: 0xa")
 # [in] long arg_6
 # );
 
-# [in] long trend_req_num,
-s_group("subs", values=map(chr, range(1, 50)))
-s_static("\x00")        # subs is actually a little endian word
-s_static("\x0a\x00")    # opcode
-
-# [in][size_is(arg_4)] byte overflow_str[],
-s_size("the string")
-if s_block_start("the string", group="subs"):
-    s_static("A"*0x5000, name="arg3")
-    #s_string("A"*100, name="arg3")
-    s_block_end()
-
-# [in] long arg_4,
-s_size("the string")
-
-# [in] long arg_6
-s_static(struct.pack("<L", 0x5000)) # output buffer size
-
-
-
-########################################################################################################################    
-s_initialize("5168: 0xa RPC")
-
-def rpc_request_encoder (data):
-    return s_utils.dce_rpc_request(0, data)
-
 if s_block_start("everything", encoder=rpc_request_encoder):
     # [in] long trend_req_num,
     s_group("subs", values=map(chr, range(1, 50)))
     s_static("\x00")        # subs is actually a little endian word
     s_static("\x0a\x00")    # opcode
-    
+
     # [in][size_is(arg_4)] byte overflow_str[],
     s_size("the string")
     if s_block_start("the string", group="subs"):
         s_static("A"*0x5000, name="arg3")
         #s_string("A"*100, name="arg3")
         s_block_end()
-    
+
     # [in] long arg_4,
     s_size("the string")
-    
+
     # [in] long arg_6
     s_static(struct.pack("<L", 0x5000)) # output buffer size
 s_block_end()
