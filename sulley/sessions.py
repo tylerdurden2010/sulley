@@ -1,10 +1,12 @@
 import re
+import zlib
 import time
 import socket
-import xmlrpclib
+import cPickle
 import threading
 import BaseHTTPServer
 
+import pedrpc
 import pgraph
 import sex
 
@@ -61,20 +63,20 @@ class target:
         self.restart_commands  = kwargs.get("restart_commands", None)
         self.restart_interval  = kwargs.get("restart_interval", 0)
 
-        # placeholders for established XML-RPC tunnels.
+        # placeholders for established PED-RPC tunnels.
         self.netmon            = extension_shell()
         self.procmon           = extension_shell()
 
 
-    def xmlrpc_connect (self):
+    def pedrpc_connect (self):
         if self.procmon_host:
-            self.procmon = xmlrpclib.ServerProxy("http://%s:%d" % (self.procmon_host, self.procmon_port))
+            self.procmon = pedrpc.client(self.procmon_host, self.procmon_port)
             self.procmon.set_proc_name(self.proc_name)
             self.procmon.set_restart_commands(self.restart_commands)
             self.procmon.set_restart_interval(self.restart_interval)
 
         if self.netmon_host:
-            self.netmon = xmlrpclib.ServerProxy("http://%s:%d" % (self.netmon_host, self.netmon_port))
+            self.netmon = pedrpc.client(self.netmon_host, self.netmon_port)
 
 
 ########################################################################################################################
@@ -107,25 +109,28 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, skip=0, sleep_time=3.0, log_level=2, proto="tcp", timeout=5.0, web_port=26000):
+    def __init__ (self, session_filename, skip=0, sleep_time=1.0, log_level=2, proto="tcp", timeout=5.0, web_port=26000):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
-        @type  skip:       Integer
-        @param skip:       (Optional, def=0) Number of test cases to skip
-        @type  sleep_time: Float
-        @param sleep_time: (Optional, def=3.0) Time to sleep in between tests
-        @type  log_level:  Integer
-        @param log_level:  (Optional, def=2) Set the log level, higher number == more log messages
-        @type  proto:      String
-        @param proto:      (Optional, def="tcp") Communication protocol
-        @type  timeout:    Float
-        @param timeout:    (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
+        @type  session_filename: String
+        @param session_filename: Filename to serialize persistant data to
+        @type  skip:             Integer
+        @param skip:             (Optional, def=0) Number of test cases to skip
+        @type  sleep_time:       Float
+        @param sleep_time:       (Optional, def=1.0) Time to sleep in between tests
+        @type  log_level:        Integer
+        @param log_level:        (Optional, def=2) Set the log level, higher number == more log messages
+        @type  proto:            String
+        @param proto:            (Optional, def="tcp") Communication protocol
+        @type  timeout:          Float
+        @param timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
         '''
 
         # run the parent classes initialization routine first.
         pgraph.graph.__init__(self)
 
+        self.session_filename    = session_filename
         self.skip                = skip
         self.sleep_time          = sleep_time
         self.log_level           = log_level
@@ -140,6 +145,9 @@ class session (pgraph.graph):
         self.netmon_results      = {}
         self.procmon_results     = {}
         self.pause               = False
+
+        # import settings if they exist.
+        self.import_file()
 
         if self.proto == "tcp":
             self.proto = socket.SOCK_STREAM
@@ -301,6 +309,22 @@ class session (pgraph.graph):
         return edge
 
 
+    ####################################################################################################################
+    def export_file (self):
+        '''
+        Dump the entire object structure to disk.
+
+        @see: import_file()
+        '''
+
+        # XXX - unfinished
+        fh = open(self.session_filename, "wb+")
+        fh.write(zlib.compress(cPickle.dumps(self, protocol=2)))
+        fh.close()
+
+        return self
+
+
     def fuzz (self, this_node=None, path=[]):
         '''
         Call this routine to get the ball rolling. No arguments are necessary as they are both utilized internally
@@ -340,8 +364,8 @@ class session (pgraph.graph):
             # XXX - TODO - complete parallel fuzzing, will likely have to thread out each target
             target = self.targets[0]
 
-            # establish XML-RPC connections.
-            target.xmlrpc_connect()
+            # establish PED-RPC connections.
+            target.pedrpc_connect()
 
             # loop through all possible mutations of the fuzz node.
             done_with_fuzz_node = False
@@ -463,6 +487,40 @@ class session (pgraph.graph):
                 dump += "."
 
         return dump + "\n"
+
+
+    def import_file (self):
+        '''
+        Load the entire object structure from disk.
+
+        @see: export_file()
+        '''
+
+        # xxx - unfinished, the goal of this is to be able to restart the session and hit the web interface.
+        
+        try:
+            fh   = open(self.session_filename, "rb")
+            data = cPickle.loads(zlib.decompress(fh.read()))
+            fh.close()
+        except:
+            return
+
+        # XXX unfinished ...
+        self.session_filename    = data.session_filename
+        self.skip                = data.skip
+        self.sleep_time          = data.sleep_time
+        self.log_level           = data.log_level
+        self.proto               = data.proto
+        self.timeout             = data.timeout
+        self.web_port            = data.web_port
+
+        self.total_num_mutations = data.total_num_mutations
+        self.total_mutant_index  = data.total_mutant_index
+        self.fuzz_node           = data.fuzz_node
+        self.targets             = data.targets
+        self.netmon_results      = data.netmon_results
+        self.procmon_results     = data.procmon_results
+        self.pause               = data.pause
 
 
     def log (self, msg, level=1):

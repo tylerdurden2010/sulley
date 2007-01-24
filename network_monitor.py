@@ -1,11 +1,11 @@
 #!c:\\python\\python.exe
 
-import SimpleXMLRPCServer
-import xmlrpclib
 import threading
 import getopt
 import time
 import sys
+
+from sulley import pedrpc
 
 import pcapy
 import impacket
@@ -82,9 +82,13 @@ class pcap_thread (threading.Thread):
 
 
 ########################################################################################################################
-class network_monitor_xmlrpc_server:
-    def __init__ (self, device, filter="", log_path="./", log_level=1):
+class network_monitor_pedrpc_server (pedrpc.server):
+    def __init__ (self, host, port, device, filter="", log_path="./", log_level=1):
         '''
+        @type  host:        String
+        @param host:        Hostname or IP address to bind server to
+        @type  port:        Integer
+        @param port:        Port to bind server to
         @type  device:      String
         @param device:      Name of device to capture packets on
         @type  ignore_pid:  Integer
@@ -95,6 +99,9 @@ class network_monitor_xmlrpc_server:
         @param log_level:   (Optional, def=1) Log output level, increase for more verbosity
         '''
 
+        # initialize the PED-RPC server.
+        pedrpc.server.__init__(self, host, port)
+
         self.device      = device
         self.filter      = filter
         self.log_path    = log_path
@@ -103,7 +110,7 @@ class network_monitor_xmlrpc_server:
         self.pcap        = None
         self.pcap_thread = None
 
-        self.log("Network Monitor XML-RPC server initialized:")
+        self.log("Network Monitor PED-RPC server initialized:")
         self.log("\t device: %s" % self.device)
         self.log("\t filter: %s" % self.filter)
         self.log("Awaiting requests...")
@@ -165,7 +172,7 @@ class network_monitor_xmlrpc_server:
         if self.log_level >= level:
             print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
 
-        # gotta return something for XML-RPC.
+        # gotta return something for PED-RPC.
         return True
 
 
@@ -177,7 +184,7 @@ class network_monitor_xmlrpc_server:
         data          = fh.read()
         fh.close()
 
-        return xmlrpclib.Binary(data)
+        return data
 
 
     def set_filter (self, filter):
@@ -216,8 +223,5 @@ for opt, arg in opts:
 if not device:
     ERR(USAGE)
 
-servlet = network_monitor_xmlrpc_server(device, filter, log_path, log_level)
-
-xmlrpc_server = SimpleXMLRPCServer.SimpleXMLRPCServer(("0.0.0.0", 26001), logRequests=False)
-xmlrpc_server.register_instance(servlet)
-xmlrpc_server.serve_forever()
+servlet = network_monitor_pedrpc_server("0.0.0.0", 26001, device, filter, log_path, log_level)
+servlet.serve_forever()

@@ -6,7 +6,6 @@ see also: pedram's pwned notebook page 3
 """
 
 from sulley import *
-import s_utils
 
 import struct
 
