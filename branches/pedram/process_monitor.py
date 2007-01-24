@@ -1,12 +1,12 @@
 #!c:\\python\\python.exe
 
-import SimpleXMLRPCServer
-import xmlrpclib
 import threading
 import getopt
 import time
 import sys
 import os
+
+from sulley import pedrpc
 
 sys.path.append(r"..\..\..\paimei")
 
@@ -121,9 +121,13 @@ class debugger_thread (threading.Thread):
 
 
 ########################################################################################################################
-class process_monitor_xmlrpc_server:
-    def __init__ (self, crash_filename, ignore_pid=None, log_level=1):
+class process_monitor_pedrpc_server (pedrpc.server):
+    def __init__ (self, host, port, crash_filename, ignore_pid=None, log_level=1):
         '''
+        @type  host:           String                
+        @param host:           Hostname or IP address
+        @type  port:           Integer               
+        @param port:           Port to bind server to
         @type  crash_filename: String
         @param crash_filename: Name of file to (un)serialize crash bin to/from
         @type  ignore_pid:     Integer
@@ -131,6 +135,9 @@ class process_monitor_xmlrpc_server:
         @type  log_level:      Integer
         @param log_level:      (Optional, def=1) Log output level, increase for more verbosity
         '''
+
+        # initialize the PED-RPC server.
+        pedrpc.server.__init__(self, host, port)
 
         self.crash_filename   = crash_filename
         self.ignore_pid       = ignore_pid
@@ -149,7 +156,7 @@ class process_monitor_xmlrpc_server:
         except:
             pass
 
-        self.log("Process Monitor XML-RPC server initialized:")
+        self.log("Process Monitor PED-RPC server initialized:")
         self.log("\t record file: %s" % self.crash_filename)
         self.log("\t # records:   %d" % len(self.crash_bin.bins))
         self.log("\t log level:   %d" % self.log_level)
@@ -167,7 +174,7 @@ class process_monitor_xmlrpc_server:
 
     def alive (self):
         '''
-        Returns True. Useful for XML-RPC clients who want to see if the XML-RPC connection is still alive.
+        Returns True. Useful for PED-RPC clients who want to see if the PED-RPC connection is still alive.
         '''
 
         return True
@@ -209,7 +216,7 @@ class process_monitor_xmlrpc_server:
         if self.log_level >= level:
             print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
 
-        # gotta return something for XML-RPC.
+        # gotta return something for PED-RPC.
         return True
 
 
@@ -331,18 +338,6 @@ for opt, arg in opts:
 if not crash_bin:
     ERR(USAGE)
 
-# spawn the XML-RPC servlet.
-servlet = process_monitor_xmlrpc_server(crash_bin, ignore_pid, log_level)
-
-# define a custom error routine for XML-RPC exceptions.
-def xmlrpc_server_error (request, client_address):
-    print "shit hit the fan!"
-    print request
-    print client_address
-    pass
-
-# spawn a new XML-RPC server container, register our servlet and serve forever.
-xmlrpc_server = SimpleXMLRPCServer.SimpleXMLRPCServer(("0.0.0.0", 26002), logRequests=False)
-xmlrpc_server.handle_error = xmlrpc_server_error
-xmlrpc_server.register_instance(servlet)
-xmlrpc_server.serve_forever()
+# spawn the PED-RPC servlet.
+servlet = process_monitor_pedrpc_server("0.0.0.0", 26002, crash_bin, ignore_pid, log_level)
+servlet.serve_forever()

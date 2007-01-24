@@ -1,8 +1,10 @@
 import sulley.blocks
 import sulley.legos
+import sulley.pedrpc
 import sulley.primitives
 import sulley.sex
 import sulley.sessions
+import sulley.s_utils
 
 BIG_ENDIAN      = ">"
 LITTLE_ENDIAN   = "<"

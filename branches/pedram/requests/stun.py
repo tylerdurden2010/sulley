@@ -1,22 +1,21 @@
 """
 STUN: Simple Traversal of UDP through NAT
-Gizmo binds this service on UDP port 5004
+Gizmo binds this service on UDP port 5004 / 5005
 http://www.vovida.org/
 """
 
 from sulley import *
 
+########################################################################################################################
 s_initialize("binding request")
 
-# message type
-#   0x0001: binding request
-#   0x0101: binding response
-s_word(0x0001, endian=">")
+# message type 0x0001: binding request.
+s_static("\x00\x01")
 
-# message length
+# message length.
 s_sizer("attributes", length=2, endian=">", name="message length", fuzzable=True)
 
-# message transaction id
+# message transaction id.
 s_static("\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff")
 
 if s_block_start("attributes"):
@@ -40,10 +39,16 @@ if s_block_start("attributes"):
 
 # toss out some large strings when the lengths are anything but valid.
 if s_block_start("fuzz block 1", dep="attribute length", dep_value=4, dep_compare="!="):
-    s_string("")
+    s_static("A"*5000)
     s_block_end()
 
 # toss out some large strings when the lengths are anything but valid.
 if s_block_start("fuzz block 2", dep="message length", dep_value=8, dep_compare="!="):
-    s_string("")
+    s_static("B"*5000)
     s_block_end()
+
+
+########################################################################################################################
+s_initialize("binding response")
+
+# message type 0x0101: binding response
