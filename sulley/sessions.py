@@ -1,4 +1,5 @@
 import re
+import sys
 import zlib
 import time
 import socket
@@ -14,6 +15,9 @@ import sex
 class extension_shell:
     def __init__ (self, *args, **kwargs):
         pass
+
+    def __getattr__ (self, name):
+        return False
 
     def alive (self):
         return False
@@ -47,8 +51,10 @@ class target:
         @param procmon_port:     (Optional, def=26002) Listening port of process monitor on this target
         @type  proc_name:        String
         @param proc_name:        (Required for procmon) Target process name to monitor
-        @type  restart_commands: List
-        @param restart_commands: (Required for procmon) List of commands to issue to restart target process
+        @type  stop_commands:    List
+        @param stop_commands:    (Required for procmon) List of commands to issue to stop the target process
+        @type  start_commands:   List
+        @param start_commands:   (Required for procmon) List of commands to issue to start the target process
         @type  restart_interval: Integer
         @param restart_interval: (Optional, def=0) Restart the target process after n test cases
         '''
@@ -60,7 +66,8 @@ class target:
         self.procmon_host      = kwargs.get("procmon_host",     None)
         self.procmon_port      = kwargs.get("procmon_port",     26002)
         self.proc_name         = kwargs.get("proc_name",        None)
-        self.restart_commands  = kwargs.get("restart_commands", None)
+        self.stop_commands     = kwargs.get("stop_commands",    None)
+        self.start_commands    = kwargs.get("start_commands",   None)
         self.restart_interval  = kwargs.get("restart_interval", 0)
 
         # placeholders for established PED-RPC tunnels.
@@ -70,13 +77,22 @@ class target:
 
     def pedrpc_connect (self):
         if self.procmon_host:
-            self.procmon = pedrpc.client(self.procmon_host, self.procmon_port)
-            self.procmon.set_proc_name(self.proc_name)
-            self.procmon.set_restart_commands(self.restart_commands)
-            self.procmon.set_restart_interval(self.restart_interval)
+            try:
+                self.procmon = pedrpc.client(self.procmon_host, self.procmon_port)
+                self.procmon.set_proc_name(self.proc_name)
+                self.procmon.set_stop_commands(self.stop_commands)
+                self.procmon.set_start_commands(self.start_commands)
+                self.procmon.set_restart_interval(self.restart_interval)
+            except:
+                sys.stderr.write("Failed connecting to process monitor at %s:%d\n" % (self.procmon_host, self.procmon_port))
+                raise Exception
 
         if self.netmon_host:
-            self.netmon = pedrpc.client(self.netmon_host, self.netmon_port)
+            try:
+                self.netmon = pedrpc.client(self.netmon_host, self.netmon_port)
+            except:
+                sys.stderr.write("Failed connecting to network monitor at %s:%d\n" % (self.netmon_host, self.netmon_port))
+                raise Exception
 
 
 ########################################################################################################################
@@ -109,7 +125,7 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, session_filename, skip=0, sleep_time=1.0, log_level=2, proto="tcp", timeout=5.0, web_port=26000):
+    def __init__ (self, session_filename, skip=0, sleep_time=1.0, log_level=1, proto="tcp", timeout=5.0, web_port=26000):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
@@ -146,15 +162,15 @@ class session (pgraph.graph):
         self.procmon_results     = {}
         self.pause               = False
 
-        # import settings if they exist.
-        self.import_file()
-
         if self.proto == "tcp":
             self.proto = socket.SOCK_STREAM
         elif self.proto == "udp":
             self.proto = socket.SOCK_DGRAM
         else:
             raise sex.error("INVALID PROTOCOL SPECIFIED: %s" % self.proto)
+
+        # import settings if they exist.
+        self.import_file()
 
         # create a root node. we do this because we need to start fuzzing from a single point and the user may want
         # to specify a number of initial requests.
@@ -199,7 +215,7 @@ class session (pgraph.graph):
 
         try:
             rendered = node.render()
-            self.log(self.hex_dump(rendered), level=5)
+            self.log(self.hex_dump(rendered), level=10)
             sock.send(rendered)
 
             if self.proto == "tcp":
@@ -208,14 +224,15 @@ class session (pgraph.graph):
             else:
                 self.last_recv = ""
         except:
-            if target.has_procmon:
+            if target.procmon.alive():
                 self.log("socket send failed or timed out, restart target")
-                target.procmon.restart_target()
+                target.procmon.stop_target()
+                target.procmon.start_target()
             else:
                 self.log("socket send failed or timed out, sleeping for a while")
                 time.sleep(10)
 
-        self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=5)
+        self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=10)
 
 
     def add_node (self, node):
@@ -317,12 +334,16 @@ class session (pgraph.graph):
         @see: import_file()
         '''
 
-        # XXX - unfinished
+        # trim out attributes that can't be serialized.
+        targets      = self.targets
+        self.targets = None
+
         fh = open(self.session_filename, "wb+")
         fh.write(zlib.compress(cPickle.dumps(self, protocol=2)))
         fh.close()
 
-        return self
+        # restored trimmed attributes.
+        self.targets = targets
 
 
     def fuzz (self, this_node=None, path=[]):
@@ -339,7 +360,12 @@ class session (pgraph.graph):
         # if no node is specified, then we start from the root node and initialize the session.
         if not this_node:
             this_node = self.root
-            self.server_init()
+
+            try:    self.server_init()
+            except: return
+
+        # XXX - TODO - complete parallel fuzzing, will likely have to thread out each target
+        target = self.targets[0]
 
         # step through every edge from the current node.
         for edge in self.edges_from(this_node.id):
@@ -359,17 +385,12 @@ class session (pgraph.graph):
             self.log("current fuzz path: %s" % current_path, 2)
             self.log("fuzzed %d of %d total cases" % (self.total_mutant_index, self.total_num_mutations), 2)
 
-            # step through each available target and fuzz them in parallel, splitting the test cases between them.
-            #for target in self.targets:
-            # XXX - TODO - complete parallel fuzzing, will likely have to thread out each target
-            target = self.targets[0]
-
-            # establish PED-RPC connections.
-            target.pedrpc_connect()
-
             # loop through all possible mutations of the fuzz node.
             done_with_fuzz_node = False
             while not done_with_fuzz_node:
+                # serialize session state to disk.
+                self.export_file()
+
                 # if we need to pause, do so.
                 self.__pause()
 
@@ -391,19 +412,21 @@ class session (pgraph.graph):
                     target.netmon.pre_send(self.total_mutant_index)
 
                     # establish a connection to the target.
-                    try:
-                        sock = socket.socket(socket.AF_INET, self.proto)
-                        sock.settimeout(self.timeout)
-                        sock.connect((target.host, target.port))
-                    except:
-                        if target.procmon.alive():
-                            self.log("failed connecting to %s:%d, restarting target" % (target.host, target.port))
-                            target.procmon.restart_target()
-                        else:
-                            raise sex.error("FAILED CONNECTING TO %s:%d" % (target.host, target.port))
+                    while 1:
+                        try:
+                            sock = socket.socket(socket.AF_INET, self.proto)
+                            sock.settimeout(self.timeout)
+                            sock.connect((target.host, target.port))
 
-                    # if the user registered a pre-send function, pass it the sock and let it do the deed.
-                    self.pre_send(sock)
+                            # if the user registered a pre-send function, pass it the sock and let it do the deed.
+                            self.pre_send(sock)
+
+                            # if we reached this point, break out of the loop.
+                            break
+                        except:
+                            self.log("failed connecting to %s:%d, restarting target" % (target.host, target.port))
+                            target.procmon.stop_target()
+                            target.procmon.start_target()
 
                     # send out valid requests for each node in the current path up to the node we are fuzzing.
                     for e in path:
@@ -425,14 +448,14 @@ class session (pgraph.graph):
                     # check if our fuzz crashed the target.
                     if not target.procmon.post_send():
                         self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
-                        self.procmon_results[self.total_mutant_index] = target.procmon.crash_synopsis
+                        self.procmon_results[self.total_mutant_index] = target.procmon.crash_synopsis()
 
                     # see how many bytes the sniffer recorded.
                     bytes = target.netmon.post_send()
 
                     # if netmon is not connected, the shell class container returns True and not an integer.
                     if type(bytes) is int:
-                        self.log("netmon captured %d bytes for test case #%d" % (bytes, self.total_mutant_index))
+                        self.log("netmon captured %d bytes for test case #%d" % (bytes, self.total_mutant_index), 2)
                         self.netmon_results[self.total_mutant_index] = bytes
 
             # recursively fuzz the remainder of the nodes in the session graph.
@@ -496,8 +519,6 @@ class session (pgraph.graph):
         @see: export_file()
         '''
 
-        # xxx - unfinished, the goal of this is to be able to restart the session and hit the web interface.
-        
         try:
             fh   = open(self.session_filename, "rb")
             data = cPickle.loads(zlib.decompress(fh.read()))
@@ -505,19 +526,17 @@ class session (pgraph.graph):
         except:
             return
 
-        # XXX unfinished ...
+        # update the skip variable to pick up fuzzing from last test case.
+        self.skip                = data.total_mutant_index
         self.session_filename    = data.session_filename
-        self.skip                = data.skip
         self.sleep_time          = data.sleep_time
         self.log_level           = data.log_level
         self.proto               = data.proto
         self.timeout             = data.timeout
         self.web_port            = data.web_port
-
         self.total_num_mutations = data.total_num_mutations
         self.total_mutant_index  = data.total_mutant_index
         self.fuzz_node           = data.fuzz_node
-        self.targets             = data.targets
         self.netmon_results      = data.netmon_results
         self.procmon_results     = data.procmon_results
         self.pause               = data.pause
@@ -612,12 +631,18 @@ class session (pgraph.graph):
         Called by fuzz() on first run (not on recursive re-entry) to initialize variables, web interface, etc...
         '''
 
+        # XXX - TODO - expand this when we hvae parallel fuzzing setup.
+        target = self.targets[0]
+
         self.total_mutant_index  = 0
         self.total_num_mutations = self.num_mutations()
 
         # spawn the web interface.
         t = web_interface_thread(self)
         t.start()
+
+        # establish PED-RPC connections.
+        target.pedrpc_connect()
 
 
 ########################################################################################################################
@@ -661,6 +686,36 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
 
+        if "view_crash" in self.path:
+            response = self.view_crash(self.path)
+        elif "view_pcap" in self.path:
+            response = self.view_pcap(self.path)
+        else:
+            response = self.view_index()
+
+        self.wfile.write(response)
+
+
+    def log_error (self, *args, **kwargs):
+        pass
+
+
+    def log_message (self, *args, **kwargs):
+        pass
+
+
+    def version_string (self):
+        return "Sulley Fuzz Session"
+
+
+    def view_crash (self, path):
+        test_number = int(path.split("/")[-1])
+        return "<html><pre>%s</pre></html>" % self.session.procmon_results[test_number]
+
+    def view_pcap (self, path):
+        return path
+
+    def view_index (self):
         response = """
                     <html>
                     <head>
@@ -705,9 +760,10 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
                     </head>
                     <body>
                     <center>
-                    <table border=0 cellpadding=5 cellspacing=0 width=600>
+                    <table border=0 cellpadding=5 cellspacing=0 width=600><tr><td>
                     <!-- begin bounding table -->
 
+                    <table border=0 cellpadding=5 cellspacing=0 width="100%%">
                     <tr bgcolor="#333333">
                         <td><div style="font-size: 20px;">Sulley Fuzz Control</div></td>
                         <td align=right><div style="font-weight: bold; font-size: 20px;">%(status)s</div></td>
@@ -746,19 +802,32 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
                             </form>
                         </td>
                     </tr>
+                    </table>
+
+                    <!-- begin procmon results -->
+                    <table border=0 cellpadding=5 cellspacing=0 width="100%%">
+                        <tr bgcolor="#333333">
+                            <td nowrap>Test Case #</td>
+                            <td>Crash Synopsis</td>
+                        </tr>
+                    """
+
+        keys = self.session.procmon_results.keys()
+        keys.sort()
+        for key in keys:
+            val = self.session.procmon_results[key]
+            response += '<tr><td class="fixed"><a href="/view_crash/%d">%06d</a></td><td>%s</td></tr>' % (key, key, val.split("\n")[0])
+
+        response += """
+                    <!-- end procmon results -->
+                    </table>
 
                     <!-- end bounding table -->
-                    </table>
+                    </td></tr></table>
                     </center>
                     </body>
                     </html>
                    """
-
-        # which node (request) are we currently fuzzing.
-        if self.session.fuzz_node.name:
-            current_name = self.session.fuzz_node.name
-        else:
-            current_name = "[N/A]"
 
         # what is the fuzzing status.
         if self.session.pause:
@@ -766,44 +835,54 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
         else:
             status = "<font color=green>RUNNING</font>"
 
-        # render sweet progress bars.
-        progress_current     = float(self.session.fuzz_node.mutant_index) / float(self.session.fuzz_node.num_mutations())
-        num_bars             = int(progress_current * 40)
-        progress_current_bar = "[" + "=" * num_bars + "&nbsp;" * (40 - num_bars) + "]"
-        progress_current     = "%.3f%%" % (progress_current * 100)
+        # if there is a current fuzz node.
+        if self.session.fuzz_node:
+            # which node (request) are we currently fuzzing.
+            if self.session.fuzz_node.name:
+                current_name = self.session.fuzz_node.name
+            else:
+                current_name = "[N/A]"
 
-        progress_total       = float(self.session.fuzz_node.mutant_index) / float(self.session.fuzz_node.num_mutations())
-        num_bars             = int(progress_total * 40)
-        progress_total_bar   = "[" + "=" * num_bars + "&nbsp;" * (40 - num_bars) + "]"
-        progress_total       = "%.3f%%" % (progress_total * 100)
+            # render sweet progress bars.
+            progress_current     = float(self.session.fuzz_node.mutant_index) / float(self.session.fuzz_node.num_mutations())
+            num_bars             = int(progress_current * 40)
+            progress_current_bar = "[" + "=" * num_bars + "&nbsp;" * (40 - num_bars) + "]"
+            progress_current     = "%.3f%%" % (progress_current * 100)
 
-        response %= \
-        {
-            "current_mutant_index"  : self.commify(self.session.fuzz_node.mutant_index),
-            "current_name"          : current_name,
-            "current_num_mutations" : self.commify(self.session.fuzz_node.num_mutations()),
-            "progress_current"      : progress_current,
-            "progress_current_bar"  : progress_current_bar,
-            "progress_total"        : progress_total,
-            "progress_total_bar"    : progress_total_bar,
-            "status"                : status,
-            "total_mutant_index"    : self.commify(self.session.total_mutant_index),
-            "total_num_mutations"   : self.commify(self.session.total_num_mutations),
-        }
+            progress_total       = float(self.session.total_mutant_index) / float(self.session.total_num_mutations)
+            num_bars             = int(progress_total * 40)
+            progress_total_bar   = "[" + "=" * num_bars + "&nbsp;" * (40 - num_bars) + "]"
+            progress_total       = "%.3f%%" % (progress_total * 100)
 
-        self.wfile.write(response)
+            response %= \
+            {
+                "current_mutant_index"  : self.commify(self.session.fuzz_node.mutant_index),
+                "current_name"          : current_name,
+                "current_num_mutations" : self.commify(self.session.fuzz_node.num_mutations()),
+                "progress_current"      : progress_current,
+                "progress_current_bar"  : progress_current_bar,
+                "progress_total"        : progress_total,
+                "progress_total_bar"    : progress_total_bar,
+                "status"                : status,
+                "total_mutant_index"    : self.commify(self.session.total_mutant_index),
+                "total_num_mutations"   : self.commify(self.session.total_num_mutations),
+            }
+        else:
+            response %= \
+            {
+                "current_mutant_index"  : "",
+                "current_name"          : "",
+                "current_num_mutations" : "",
+                "progress_current"      : "",
+                "progress_current_bar"  : "",
+                "progress_total"        : "",
+                "progress_total_bar"    : "",
+                "status"                : "<font color=yellow>UNAVAILABLE</font>",
+                "total_mutant_index"    : "",
+                "total_num_mutations"   : "",
+            }
 
-
-    def log_error (self, *args, **kwargs):
-        pass
-
-
-    def log_message (self, *args, **kwargs):
-        pass
-
-
-    def version_string (self):
-        return "Sulley Fuzz Session"
+        return response
 
 
 ########################################################################################################################
