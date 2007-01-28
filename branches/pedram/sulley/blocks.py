@@ -174,6 +174,7 @@ class block:
         self.fuzzable      = True   # blocks are always fuzzable because they may contain fuzzable items.
         self.group_idx     = 0      # if this block is tied to a group, the index within that group.
         self.fuzz_complete = False  # whether or not we are done fuzzing this block.
+        self.mutant_index  = 0      # current mutation index.
 
 
     def mutate (self):
@@ -256,6 +257,9 @@ class block:
             # if we had a dependancy, make sure we restore the original value.
             if self.dep:
                 self.request.names[self.dep].value = self.request.names[self.dep].original_value
+
+        if mutated:
+            self.mutant_index += 1
 
         return mutated
 

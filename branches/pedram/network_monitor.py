@@ -12,6 +12,7 @@ import pcapy
 import impacket
 import impacket.ImpactDecoder
 
+PORT  = 26001
 IFS   = []
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
 USAGE = "USAGE: network_monitor.py"                                                                \
@@ -25,14 +26,18 @@ USAGE = "USAGE: network_monitor.py"                                             
 i = 0
 for dev in pcapy.findalldevs():
     IFS.append(dev)
+
+    # if we are on windows, try and resolve the device UUID into an IP address.
     if sys.platform.startswith("win"):
         import _winreg
 
         try:
-            dev = dev[dev.index("{"):dev.index("}")+1]
+            # extract the device UUID and open the TCP/IP parameters key for it.
+            dev    = dev[dev.index("{"):dev.index("}")+1]
+            subkey = r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\%s" % dev
+            key    = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, subkey)
 
-            key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\%s" % dev)
-
+            # if there is a DHCP address snag that, otherwise fall back to the IP address.
             try:    ip = _winreg.QueryValueEx(key, "DhcpIPAddress")[0]
             except: ip = _winreg.QueryValueEx(key, "IPAddress")[0][0]
 
@@ -55,6 +60,7 @@ class pcap_thread (threading.Thread):
         self.active          = True
         self.data_bytes      = 0
 
+        # register the appropriate decoder.
         if pcap.datalink() == pcapy.DLT_EN10MB:
             self.decoder = impacket.ImpactDecoder.EthDecoder()
         elif pcap.datalink() == pcapy.DLT_LINUX_SLL:
@@ -111,6 +117,7 @@ class network_monitor_pedrpc_server (pedrpc.server):
         self.pcap        = None
         self.pcap_thread = None
 
+        # ensure the log path is valid.
         if not os.access(self.log_path, os.X_OK):
             self.log("invalid log path: %s" % self.log_path)
             raise Exception
@@ -124,13 +131,15 @@ class network_monitor_pedrpc_server (pedrpc.server):
 
 
     def __stop (self):
+        '''
+        Kill the PCAP thread.
+        '''
+
         if self.pcap_thread:
             self.log("stopping active packet capture thread.", 10)
 
             self.pcap_thread.active = False
             self.pcap_thread        = None
-
-        return True
 
 
     def alive (self):
@@ -143,7 +152,11 @@ class network_monitor_pedrpc_server (pedrpc.server):
 
     def post_send (self):
         '''
-        Return the number of bytes captured.
+        This routine is called after the fuzzer transmits a test case and returns the number of bytes captured by the
+        PCAP thread.
+
+        @rtype:  Integer
+        @return: Number of bytes captured in PCAP thread.
         '''
 
         # grab the number of recorded bytes.
@@ -158,7 +171,7 @@ class network_monitor_pedrpc_server (pedrpc.server):
 
     def pre_send (self, test_number):
         '''
-        Spin off a packet capture thread.
+        This routine is called before the fuzzer transmits a test case and spin off a packet capture thread.
         '''
 
         self.log("initializing capture for test cast #%d" % test_number)
@@ -173,7 +186,6 @@ class network_monitor_pedrpc_server (pedrpc.server):
         self.pcap_thread.start()
 
         self.log("PCAP thread instantiated. logging to: %s" % pcap_log_path)
-        return True
 
 
     def log (self, msg="", level=1):
@@ -187,11 +199,15 @@ class network_monitor_pedrpc_server (pedrpc.server):
         if self.log_level >= level:
             print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
 
-        # gotta return something for PED-RPC.
-        return True
-
 
     def retrieve (self, test_number):
+        '''
+        Return the raw binary contents of the PCAP saved for the specified test case number.
+
+        @type  test_number: Integer
+        @param test_number: Test number to retrieve PCAP for.
+        '''
+
         self.log("retrieving PCAP for test case #%d" % test_number)
 
         pcap_log_path = "%s/%d.pcap" % (self.log_path, test_number)
@@ -206,14 +222,12 @@ class network_monitor_pedrpc_server (pedrpc.server):
         self.log("updating PCAP filter to '%s'" % filter)
 
         self.filter = filter
-        return True
 
 
     def set_log_path (self, log_path):
         self.log("updating log path to '%s'" % log_path)
 
         self.log_path = log_path
-        return True
 
 
 ########################################################################################################################
@@ -240,7 +254,7 @@ if __name__ == "__main__":
         ERR(USAGE)
 
     try:
-        servlet = network_monitor_pedrpc_server("0.0.0.0", 26001, device, filter, log_path, log_level)
+        servlet = network_monitor_pedrpc_server("0.0.0.0", PORT, device, filter, log_path, log_level)
         servlet.serve_forever()
     except:
         pass

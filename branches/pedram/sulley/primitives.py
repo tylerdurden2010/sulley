@@ -309,7 +309,7 @@ class static (base_primitive):
         self.value         = self.original_value = value
         self.name          = name
         self.fuzzable      = False       # every primitive needs this attribute.
-
+        self.mutant_index  = 0
         self.rendered      = ""
         self.fuzz_complete = True
 
@@ -424,6 +424,7 @@ class string (base_primitive):
 
             # miscellaneous.
             "\r\n" * 100,
+            "<>" * 500,         # sendmail crackaddr (http://lsd-pl.net/other/sendmail.txt)
         ]
 
         # add some long strings.

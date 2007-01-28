@@ -40,9 +40,14 @@ class client:
         # if we have a pre-existing server socket, ensure it's closed.
         self.__disconnect()
 
-        # connect to the server.
-        self.__server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.__server_sock.connect((self.__host, self.__port))
+        # connect to the server, timeout on failure.
+        try:
+            self.__server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.__server_sock.settimeout(3.0)
+            self.__server_sock.connect((self.__host, self.__port))
+        except:
+            sys.stderr.write("PED-RPC> unable to connect to server %s:%d\n" % (self.__host, self.__port))
+            raise Exception
 
         # disable timeouts and lingering.
         self.__server_sock.settimeout(None)
@@ -83,6 +88,17 @@ class client:
         @rtype:  Mixed
         @return: Return value of the mirrored method.
         '''
+
+        # return a value so lines of code like the following work:
+        #     x = pedrpc.client(host, port)
+        #     if x:
+        #         x.do_something()
+        if method_name == "__nonzero__":
+            return 1
+
+        # ignore all other attempts to access a private member.
+        if method_name.startswith("__"):
+            return
 
         # connect to the PED-RPC server.
         self.__connect()
@@ -128,7 +144,7 @@ class client:
             length   = long(self.__server_sock.recv(4), 16)
             received = self.__server_sock.recv(length)
         except:
-            sys.stderr.write("PED-RPC> connecton to server severed\n")
+            sys.stderr.write("PED-RPC> connection to server severed\n")
             raise Exception
 
         return cPickle.loads(received)
@@ -154,7 +170,7 @@ class client:
             self.__server_sock.send("%04x" % len(data))
             self.__server_sock.send(data)
         except:
-            sys.stderr.write("PED-RPC> connecton to server severed\n")
+            sys.stderr.write("PED-RPC> connection to server severed\n")
             raise Exception
 
 
@@ -262,15 +278,13 @@ class server:
             except:
                 continue
 
-            # resolve a pointer to the requested method.
-            # move on if the method can't be found.
             try:
+                # resolve a pointer to the requested method and call it.
                 exec("method_pointer = self.%s" % method_name)
+                ret = method_pointer(*args, **kwargs)
             except:
-                continue
-
-            # call the method point and save the return value.
-            ret = method_pointer(*args, **kwargs)
+                # if the method can't be found. return None.
+                ret = None
 
             # transmit the return value to the client, continue on socket disconnect.
             try:
