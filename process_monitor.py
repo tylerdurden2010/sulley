@@ -15,6 +15,7 @@ from pydbg.defines import *
 
 import utils
 
+PORT  = 26002
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
 USAGE = "USAGE: process_monitor.py"                                                                \
         "\n    <-c|--crash_bin FILENAME> filename to serialize crash bin class to"                 \
@@ -68,7 +69,9 @@ class debugger_thread (threading.Thread):
 
         # save the the crash synopsis.
         self.process_monitor.last_synopsis = self.process_monitor.crash_bin.crash_synopsis()
-        self.process_monitor.log("debugger thread-%s caught access violaton: '%s'" % (self.getName(), self.process_monitor.last_synopsis.split("\n")[0]))
+        first_line                         = self.process_monitor.last_synopsis.split("\n")[0]
+
+        self.process_monitor.log("debugger thread-%s caught access violaton: '%s'" % (self.getName(), first_line))
 
         # this instance of pydbg should no longer be accessed, i want to know if it is.
         self.process_monitor.crash_bin.pydbg = None
@@ -155,8 +158,6 @@ class process_monitor_pedrpc_server (pedrpc.server):
         self.proc_name        = None
         self.stop_commands    = []
         self.start_commands   = []
-        self.restart_interval = 0
-        self.num_tests        = 0
         self.test_number      = None
         self.debugger_thread  = None
         self.crash_bin        = utils.crash_binning.crash_binning()
@@ -189,20 +190,37 @@ class process_monitor_pedrpc_server (pedrpc.server):
 
     def crash_synopsis (self):
         '''
-        Return the first line of the last recorded crash synopsis.
+        Return the last recorded crash synopsis.
 
         @rtype:  String
-        @return: First line of last crash synopsis
+        @return: Synopsis of last recorded crash.
         '''
 
         return self.last_synopsis
 
 
     def get_bin_keys (self):
+        '''
+        Return the crash bin keys, ie: the unique list of exception addresses.
+
+        @rtype:  List
+        @return: List of crash bin exception addresses (keys).
+        '''
+
         return self.crash_bin.bins.keys()
 
 
     def get_bin (self, bin):
+        '''
+        Return the crash entries from the specified bin or False if the bin key is invalid.
+
+        @type  bin: Integer (DWORD)
+        @param bin: Crash bin key (ie: exception address)
+
+        @rtype:  List
+        @return: List of crashes in specified bin.
+        '''
+
         if not self.crash_bin.bins.has_key(bin):
             return False
 
@@ -220,20 +238,19 @@ class process_monitor_pedrpc_server (pedrpc.server):
         if self.log_level >= level:
             print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
 
-        # gotta return something for PED-RPC.
-        return True
-
 
     def post_send (self):
         '''
-        Check on the status of the target. Return True if the target is still active, False otherwise.
+        This routine is called after the fuzzer transmits a test case and returns the status of the target.
+
+        @rtype:  Boolean
+        @return: Return True if the target is still active, False otherwise.
         '''
 
         av = self.debugger_thread.access_violation
 
         if av:
             self.debugger_thread = None
-            self.start_target()
 
         # serialize the crash bin to disk.
         self.crash_bin.export_file(self.crash_filename)
@@ -250,8 +267,10 @@ class process_monitor_pedrpc_server (pedrpc.server):
 
     def pre_send (self, test_number):
         '''
-        Ensure the debugger thread is operational and increment the test count. If the restart interval is reached,
-        restart the target process before continuing.
+        This routine is called before the fuzzer transmits a test case and ensure the debugger thread is operational.
+
+        @type  test_number: Integer
+        @param test_number: Test number to retrieve PCAP for.
         '''
 
         self.log("pre_send(%d)" % test_number, 10)
@@ -264,19 +283,6 @@ class process_monitor_pedrpc_server (pedrpc.server):
             self.debugger_thread.start()
             self.log("giving debugger thread 2 seconds to settle in", 5)
             time.sleep(2)
-
-        self.num_tests += 1
-
-        # if we've hit the restart interval, restart the target process.
-        if self.restart_interval and self.num_tests % self.restart_interval == 0:
-            self.log("restart interval of %d reached" % self.restart_interval)
-            self.stop_target()
-            self.start_target()
-
-            # give the target 2 secs to settle in.
-            time.sleep(2)
-
-        return True
 
 
     def start_target (self):
@@ -291,8 +297,6 @@ class process_monitor_pedrpc_server (pedrpc.server):
 
         self.log("done. target up and running, giving it 5 seconds to settle in.")
         time.sleep(5)
-
-        return True
 
 
     def stop_target (self):
@@ -315,35 +319,23 @@ class process_monitor_pedrpc_server (pedrpc.server):
             else:
                 os.system(command)
 
-        return True
-
 
     def set_proc_name (self, proc_name):
         self.log("updating target process name to '%s'" % proc_name)
 
         self.proc_name = proc_name
-        return True
-
-
-    def set_restart_interval (self, restart_interval):
-        self.log("updating restart interval to: %d" % restart_interval)
-
-        self.restart_interval = restart_interval
-        return True
 
 
     def set_start_commands (self, start_commands):
         self.log("updating start commands to: %s" % start_commands)
 
         self.start_commands = start_commands
-        return True
 
 
     def set_stop_commands (self, stop_commands):
         self.log("updating stop commands to: %s" % stop_commands)
 
         self.stop_commands = stop_commands
-        return True
 
 
 ########################################################################################################################
@@ -368,7 +360,7 @@ if __name__ == "__main__":
 
     # spawn the PED-RPC servlet.
     try:
-        servlet = process_monitor_pedrpc_server("0.0.0.0", 26002, crash_bin, ignore_pid, log_level)
+        servlet = process_monitor_pedrpc_server("0.0.0.0", PORT, crash_bin, ignore_pid, log_level)
         servlet.serve_forever()
     except:
         pass

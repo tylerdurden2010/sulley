@@ -11,23 +11,6 @@ import pedrpc
 import pgraph
 import sex
 
-########################################################################################################################
-class extension_shell:
-    def __init__ (self, *args, **kwargs):
-        pass
-
-    def __getattr__ (self, name):
-        return False
-
-    def alive (self):
-        return False
-
-    def post_send (self, *args, **kwargs):
-        return True
-
-    def pre_send (self, *args, **kwargs):
-        return True
-
 
 ########################################################################################################################
 class target:
@@ -37,62 +20,19 @@ class target:
 
     def __init__ (self, host, port, **kwargs):
         '''
-        @type  host:             String
-        @param host:             Hostname or IP address of target system
-        @type  port:             Integer
-        @param port:             Port of target service
-        @type  netmon_host:      String
-        @param netmon_host:      (Optional, def=None) Hostname or IP address of network monitor for this target
-        @type  netmon_port:      Integer
-        @param netmon_port:      (Optional, def=26001) Listening port of network monitor on this target
-        @type  procmon_host:     String
-        @param procmon_host:     (Optional, def=None) Hostname or IP address of process monitor for this target
-        @type  procmon_port:     Integer
-        @param procmon_port:     (Optional, def=26002) Listening port of process monitor on this target
-        @type  proc_name:        String
-        @param proc_name:        (Required for procmon) Target process name to monitor
-        @type  stop_commands:    List
-        @param stop_commands:    (Required for procmon) List of commands to issue to stop the target process
-        @type  start_commands:   List
-        @param start_commands:   (Required for procmon) List of commands to issue to start the target process
-        @type  restart_interval: Integer
-        @param restart_interval: (Optional, def=0) Restart the target process after n test cases
+        @type  host: String
+        @param host: Hostname or IP address of target system
+        @type  port: Integer
+        @param port: Port of target service
         '''
 
-        self.host              = host
-        self.port              = port
-        self.netmon_host       = kwargs.get("netmon_host",      None)
-        self.netmon_port       = kwargs.get("netmon_port",      26001)
-        self.procmon_host      = kwargs.get("procmon_host",     None)
-        self.procmon_port      = kwargs.get("procmon_port",     26002)
-        self.proc_name         = kwargs.get("proc_name",        None)
-        self.stop_commands     = kwargs.get("stop_commands",    None)
-        self.start_commands    = kwargs.get("start_commands",   None)
-        self.restart_interval  = kwargs.get("restart_interval", 0)
+        self.host      = host
+        self.port      = port
 
-        # placeholders for established PED-RPC tunnels.
-        self.netmon            = extension_shell()
-        self.procmon           = extension_shell()
-
-
-    def pedrpc_connect (self):
-        if self.procmon_host:
-            try:
-                self.procmon = pedrpc.client(self.procmon_host, self.procmon_port)
-                self.procmon.set_proc_name(self.proc_name)
-                self.procmon.set_stop_commands(self.stop_commands)
-                self.procmon.set_start_commands(self.start_commands)
-                self.procmon.set_restart_interval(self.restart_interval)
-            except:
-                sys.stderr.write("Failed connecting to process monitor at %s:%d\n" % (self.procmon_host, self.procmon_port))
-                raise Exception
-
-        if self.netmon_host:
-            try:
-                self.netmon = pedrpc.client(self.netmon_host, self.netmon_port)
-            except:
-                sys.stderr.write("Failed connecting to network monitor at %s:%d\n" % (self.netmon_host, self.netmon_port))
-                raise Exception
+        # set this manually once target is instantiated.
+        self.netmon    = None
+        self.procmon   = None
+        self.vmcontrol = None
 
 
 ########################################################################################################################
@@ -125,7 +65,7 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, session_filename, skip=0, sleep_time=1.0, log_level=1, proto="tcp", timeout=5.0, web_port=26000):
+    def __init__ (self, session_filename, **kwargs):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
@@ -141,18 +81,21 @@ class session (pgraph.graph):
         @param proto:            (Optional, def="tcp") Communication protocol
         @type  timeout:          Float
         @param timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
+        @type  restart_interval: Integer
+        @param restart_interval  (Optional, def=0) Restart the target after n test cases, disable by setting to 0
         '''
 
         # run the parent classes initialization routine first.
         pgraph.graph.__init__(self)
 
         self.session_filename    = session_filename
-        self.skip                = skip
-        self.sleep_time          = sleep_time
-        self.log_level           = log_level
-        self.proto               = proto
-        self.timeout             = timeout
-        self.web_port            = web_port
+        self.skip                = kwargs.get("skip", 0)
+        self.sleep_time          = kwargs.get("sleep_time", 1.0)
+        self.log_level           = kwargs.get("log_level", 1)
+        self.proto               = kwargs.get("proto", "tcp")
+        self.restart_interval    = kwargs.get("restart_interval", 0)
+        self.timeout             = kwargs.get("timeout", 5.0)
+        self.web_port            = kwargs.get("web_port", 26000)
 
         self.total_num_mutations = 0
         self.total_mutant_index  = 0
@@ -160,7 +103,7 @@ class session (pgraph.graph):
         self.targets             = []
         self.netmon_results      = {}
         self.procmon_results     = {}
-        self.pause               = False
+        self.pause_flag          = False
 
         if self.proto == "tcp":
             self.proto = socket.SOCK_STREAM
@@ -182,59 +125,7 @@ class session (pgraph.graph):
         self.add_node(self.root)
 
 
-    def __pause (self):
-        '''
-        '''
-
-        while 1:
-            if self.pause:
-                time.sleep(1)
-            else:
-                break
-
-
-    def __transmit (self, sock, node, edge, target):
-        '''
-        Render and transmit a node, process callbacks accordingly. This routine is called internally by fuzz().
-
-        @type  sock:   Socket
-        @param sock:   Socket to transmit node on
-        @type  node:   Request (Node)
-        @param node:   Request/Node to transmit
-        @type  edge:   Connection (pgraph.edge)
-        @param edge:   Last edge along the current fuzz path to "node"
-        @type  target: session.target
-        @param target: Target we are transmitting to
-        '''
-
-        # if the edge has a callback, process it.
-        if edge.callback:
-            edge.callback(self, node, edge, self.last_recv)
-
-        self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
-
-        try:
-            rendered = node.render()
-            self.log(self.hex_dump(rendered), level=10)
-            sock.send(rendered)
-
-            if self.proto == "tcp":
-                # XXX - might have a need to increase this at some point. (possibly make it a class parameter)
-                self.last_recv = sock.recv(10000)
-            else:
-                self.last_recv = ""
-        except:
-            if target.procmon.alive():
-                self.log("socket send failed or timed out, restart target")
-                target.procmon.stop_target()
-                target.procmon.start_target()
-            else:
-                self.log("socket send failed or timed out, sleeping for a while")
-                time.sleep(10)
-
-        self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=10)
-
-
+    ####################################################################################################################
     def add_node (self, node):
         '''
         Add a pgraph node to the graph. We overload this routine to automatically generate and assign an ID whenever a
@@ -253,6 +144,7 @@ class session (pgraph.graph):
         return self
 
 
+    ####################################################################################################################
     def add_target (self, target):
         '''
         Add a target to the session. Multiple targets can be added for parallel fuzzing.
@@ -264,6 +156,7 @@ class session (pgraph.graph):
         self.targets.append(target)
 
 
+    ####################################################################################################################
     def connect (self, src, dst=None, callback=None):
         '''
         Create a connection between the two requests (nodes) and register an optional callback to process in between
@@ -346,6 +239,7 @@ class session (pgraph.graph):
         self.targets = targets
 
 
+    ####################################################################################################################
     def fuzz (self, this_node=None, path=[]):
         '''
         Call this routine to get the ball rolling. No arguments are necessary as they are both utilized internally
@@ -392,7 +286,7 @@ class session (pgraph.graph):
                 self.export_file()
 
                 # if we need to pause, do so.
-                self.__pause()
+                self.pause()
 
                 # if we have exhausted the mutations of the fuzz node, break out of the while(1).
                 # note: when mutate() returns False, the node has been reverted to the default (valid) state.
@@ -403,17 +297,24 @@ class session (pgraph.graph):
                 # make a record in the session that a mutation was made.
                 self.total_mutant_index += 1
 
+                # if we've hit the restart interval, restart the target.
+                if self.restart_interval and self.total_mutant_index % self.restart_interval == 0:
+                    self.log("restart interval of %d reached" % self.restart_interval)
+                    self.restart_target(target)
+
                 # if we don't need to skip the current test case.
                 if self.total_mutant_index > self.skip:
                     self.log("fuzzing %d of %d" % (self.fuzz_node.mutant_index, num_mutations), 2)
 
-                    # instruct the debugger/sniffer that we are about to send a new fuzz.
-                    target.procmon.pre_send(self.total_mutant_index)
-                    target.netmon.pre_send(self.total_mutant_index)
-
-                    # establish a connection to the target.
+                    # attempt to complete a fuzz transmission. keep trying until we are successful, whenever a failure
+                    # occurs, restart the target.
                     while 1:
                         try:
+                            # instruct the debugger/sniffer that we are about to send a new fuzz.
+                            if target.procmon: target.procmon.pre_send(self.total_mutant_index)
+                            if target.netmon:  target.netmon.pre_send(self.total_mutant_index)
+
+                            # establish a connection to the target.
                             sock = socket.socket(socket.AF_INET, self.proto)
                             sock.settimeout(self.timeout)
                             sock.connect((target.host, target.port))
@@ -421,40 +322,41 @@ class session (pgraph.graph):
                             # if the user registered a pre-send function, pass it the sock and let it do the deed.
                             self.pre_send(sock)
 
-                            # if we reached this point, break out of the loop.
+                            # send out valid requests for each node in the current path up to the node we are fuzzing.
+                            for e in path:
+                                node = self.nodes[e.src]
+                                self.transmit(sock, node, e, target)
+
+                            # now send the current node we are fuzzing.
+                            self.transmit(sock, self.fuzz_node, edge, target)
+
+                            # if the user registered a post-send function, pass it the sock and let it do the deed.
+                            self.post_send(sock)
+
+                            # done with the socket.
+                            sock.close()
+
+                            # if we reach this point the send was successful for break out of the while(1).
                             break
                         except:
-                            self.log("failed connecting to %s:%d, restarting target" % (target.host, target.port))
-                            target.procmon.stop_target()
-                            target.procmon.start_target()
-
-                    # send out valid requests for each node in the current path up to the node we are fuzzing.
-                    for e in path:
-                        node = self.nodes[e.src]
-                        self.__transmit(sock, node, e, target)
-
-                    # now send the current node we are fuzzing.
-                    self.__transmit(sock, self.fuzz_node, edge, target)
-
-                    # if the user registered a post-send function, pass it the sock and let it do the deed.
-                    self.post_send(sock)
-
-                    # done with the socket.
-                    sock.close()
+                            self.log("failed connecting to %s:%d" % (target.host, target.port))
+                            self.log("restarting target and trying again")
+                            self.restart_target(target)
 
                     # delay in between test cases.
                     time.sleep(self.sleep_time)
 
                     # check if our fuzz crashed the target.
-                    if not target.procmon.post_send():
+                    if target.procmon and not target.procmon.post_send():
                         self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
                         self.procmon_results[self.total_mutant_index] = target.procmon.crash_synopsis()
 
-                    # see how many bytes the sniffer recorded.
-                    bytes = target.netmon.post_send()
+                        # start the target back up.
+                        self.restart_target(target, stop_first=False)
 
-                    # if netmon is not connected, the shell class container returns True and not an integer.
-                    if type(bytes) is int:
+                    # see how many bytes the sniffer recorded.
+                    if target.netmon:
+                        bytes = target.netmon.post_send()
                         self.log("netmon captured %d bytes for test case #%d" % (bytes, self.total_mutant_index), 2)
                         self.netmon_results[self.total_mutant_index] = bytes
 
@@ -466,52 +368,7 @@ class session (pgraph.graph):
             path.pop()
 
 
-    def hex_dump (self, data, addr=0):
-        '''
-        Return the hex dump of the supplied data starting at the offset address specified.
-
-        @type  data: Raw
-        @param data: Data to show hex dump of
-        @type  addr: Integer
-        @param addr: (Optional, def=0) Offset to start displaying hex dump addresses from
-
-        @rtype:  String
-        @return: Hex dump of raw data
-        '''
-
-        dump = slice = ""
-
-        for byte in data:
-            if addr % 16 == 0:
-                dump += " "
-
-                for char in slice:
-                    if ord(char) >= 32 and ord(char) <= 126:
-                        dump += char
-                    else:
-                        dump += "."
-
-                dump += "\n%04x: " % addr
-                slice = ""
-
-            dump  += "%02x " % ord(byte)
-            slice += byte
-            addr  += 1
-
-        remainder = addr % 16
-
-        if remainder != 0:
-            dump += "   " * (16 - remainder) + " "
-
-        for char in slice:
-            if ord(char) >= 32 and ord(char) <= 126:
-                dump += char
-            else:
-                dump += "."
-
-        return dump + "\n"
-
-
+    ####################################################################################################################
     def import_file (self):
         '''
         Load the entire object structure from disk.
@@ -528,6 +385,7 @@ class session (pgraph.graph):
 
         # update the skip variable to pick up fuzzing from last test case.
         self.skip                = data.total_mutant_index
+
         self.session_filename    = data.session_filename
         self.sleep_time          = data.sleep_time
         self.log_level           = data.log_level
@@ -539,21 +397,23 @@ class session (pgraph.graph):
         self.fuzz_node           = data.fuzz_node
         self.netmon_results      = data.netmon_results
         self.procmon_results     = data.procmon_results
-        self.pause               = data.pause
+        self.pause_flag          = data.pause_flag
 
 
+    ####################################################################################################################
     def log (self, msg, level=1):
         '''
-        If the log flag is raised, print the specified message to screen.
+        If the supplied message falls under the current log level, print the specified message to screen.
 
         @type  msg: String
         @param msg: Message to log
         '''
 
         if self.log_level >= level:
-            print msg
+            print "[%s] %s" % (time.strftime("%I:%M.%S"), msg)
 
 
+    ####################################################################################################################
     def num_mutations (self, this_node=None, path=[]):
         '''
         Number of total mutations in the graph. The logic of this routine is identical to that of fuzz(). See fuzz()
@@ -588,6 +448,20 @@ class session (pgraph.graph):
         return self.total_num_mutations
 
 
+    ####################################################################################################################
+    def pause (self):
+        '''
+        If thet pause flag is raised, enter an endless loop until it is lowered.
+        '''
+
+        while 1:
+            if self.pause_flag:
+                time.sleep(1)
+            else:
+                break
+
+
+    ####################################################################################################################
     def post_send (self, sock):
         '''
         Overload or replace this routine to specify actions to run prior to each fuzz request. The order of events is
@@ -607,6 +481,7 @@ class session (pgraph.graph):
         pass
 
 
+    ####################################################################################################################
     def pre_send (self, sock):
         '''
         Overload or replace this routine to specify actions to run affter to each fuzz request. The order of events is
@@ -626,6 +501,32 @@ class session (pgraph.graph):
         pass
 
 
+    ####################################################################################################################
+    def restart_target (self, target, stop_first=True):
+        '''
+        Restart the fuzz target. If a VMControl is available revert the snapshot, if a process monitor is available
+        restart the target process. Otherwise, do nothing.
+
+        @type  target: session.target
+        @param target: Target we are restarting
+        '''
+
+        # vm restarting is the preferred method so try that first.
+        if target.vmcontrol:
+            target.vmcontrol.restart_target()
+
+        # otherwise if we have a process monitor connection, restart the target process.
+        elif target.procmon:
+            if stop_first:
+                target.procmon.stop_target()
+
+            target.procmon.start_target()
+
+            # give the process a few seconds to settle in.
+            time.sleep(3)
+
+
+    ####################################################################################################################
     def server_init (self):
         '''
         Called by fuzz() on first run (not on recursive re-entry) to initialize variables, web interface, etc...
@@ -641,8 +542,36 @@ class session (pgraph.graph):
         t = web_interface_thread(self)
         t.start()
 
-        # establish PED-RPC connections.
-        target.pedrpc_connect()
+
+    ####################################################################################################################
+    def transmit (self, sock, node, edge, target):
+        '''
+        Render and transmit a node, process callbacks accordingly.
+
+        @type  sock:   Socket
+        @param sock:   Socket to transmit node on
+        @type  node:   Request (Node)
+        @param node:   Request/Node to transmit
+        @type  edge:   Connection (pgraph.edge)
+        @param edge:   Last edge along the current fuzz path to "node"
+        @type  target: session.target
+        @param target: Target we are transmitting to
+        '''
+
+        # if the edge has a callback, process it.
+        if edge.callback:
+            edge.callback(self, node, edge, self.last_recv)
+
+        self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
+        sock.send(node.render())
+
+        if self.proto == "tcp":
+            # XXX - might have a need to increase this at some point. (possibly make it a class parameter)
+            self.last_recv = sock.recv(10000)
+        else:
+            self.last_recv = ""
+
+        self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=10)
 
 
 ########################################################################################################################
@@ -677,10 +606,10 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_everything (self):
         if "pause" in self.path:
-            self.session.pause = True
+            self.session.pause_flag = True
 
         if "resume" in self.path:
-            self.session.pause = False
+            self.session.pause_flag = False
 
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
@@ -712,8 +641,10 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
         test_number = int(path.split("/")[-1])
         return "<html><pre>%s</pre></html>" % self.session.procmon_results[test_number]
 
+
     def view_pcap (self, path):
         return path
+
 
     def view_index (self):
         response = """
@@ -760,7 +691,7 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
                     </head>
                     <body>
                     <center>
-                    <table border=0 cellpadding=5 cellspacing=0 width=600><tr><td>
+                    <table border=0 cellpadding=5 cellspacing=0 width=750><tr><td>
                     <!-- begin bounding table -->
 
                     <table border=0 cellpadding=5 cellspacing=0 width="100%%">
@@ -809,14 +740,20 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
                         <tr bgcolor="#333333">
                             <td nowrap>Test Case #</td>
                             <td>Crash Synopsis</td>
+                            <td nowrap>Captured Bytes</td>
                         </tr>
                     """
 
         keys = self.session.procmon_results.keys()
         keys.sort()
         for key in keys:
-            val = self.session.procmon_results[key]
-            response += '<tr><td class="fixed"><a href="/view_crash/%d">%06d</a></td><td>%s</td></tr>' % (key, key, val.split("\n")[0])
+            val   = self.session.procmon_results[key]
+            bytes = "&nbsp;"
+
+            if self.session.netmon_results.has_key(key):
+                bytes = self.commify(self.session.netmon_results[key])
+
+            response += '<tr><td class="fixed"><a href="/view_crash/%d">%06d</a></td><td>%s</td><td align=right>%s</td></tr>' % (key, key, val.split("\n")[0], bytes)
 
         response += """
                     <!-- end procmon results -->
@@ -830,7 +767,7 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
                    """
 
         # what is the fuzzing status.
-        if self.session.pause:
+        if self.session.pause_flag:
             status = "<font color=red>PAUSED</font>"
         else:
             status = "<font color=green>RUNNING</font>"
@@ -845,13 +782,13 @@ class web_interface_handler (BaseHTTPServer.BaseHTTPRequestHandler):
 
             # render sweet progress bars.
             progress_current     = float(self.session.fuzz_node.mutant_index) / float(self.session.fuzz_node.num_mutations())
-            num_bars             = int(progress_current * 40)
-            progress_current_bar = "[" + "=" * num_bars + "&nbsp;" * (40 - num_bars) + "]"
+            num_bars             = int(progress_current * 50)
+            progress_current_bar = "[" + "=" * num_bars + "&nbsp;" * (50 - num_bars) + "]"
             progress_current     = "%.3f%%" % (progress_current * 100)
 
             progress_total       = float(self.session.total_mutant_index) / float(self.session.total_num_mutations)
-            num_bars             = int(progress_total * 40)
-            progress_total_bar   = "[" + "=" * num_bars + "&nbsp;" * (40 - num_bars) + "]"
+            num_bars             = int(progress_total * 50)
+            progress_total_bar   = "[" + "=" * num_bars + "&nbsp;" * (50 - num_bars) + "]"
             progress_total       = "%.3f%%" % (progress_total * 100)
 
             response %= \
