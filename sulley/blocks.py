@@ -29,7 +29,7 @@ class request (pgraph.node):
         self.callbacks     = {}      # dictionary of list of sizers / checksums that were unable to complete rendering.
         self.names         = {}      # dictionary of directly accessible primitives.
         self.rendered      = ""      # rendered block structure.
-        self.mutant_index  = 0       # current mutation index.
+        self.mutant_index  = 1       # current mutation index.
 
 
     def mutate (self):
@@ -128,7 +128,7 @@ class request (pgraph.node):
         Reset every block and primitives mutant state under this request.
         '''
 
-        self.mutant_index  = 0
+        self.mutant_index  = 1
         self.closed_blocks = {}
 
         for item in self.stack:

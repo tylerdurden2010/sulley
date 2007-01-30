@@ -174,7 +174,7 @@ class network_monitor_pedrpc_server (pedrpc.server):
         This routine is called before the fuzzer transmits a test case and spin off a packet capture thread.
         '''
 
-        self.log("initializing capture for test cast #%d" % test_number)
+        self.log("initializing capture for test case #%d" % test_number)
 
         # open the capture device and set the BPF filter.
         self.pcap = pcapy.open_live(self.device, -1, 1, 100)
@@ -184,8 +184,6 @@ class network_monitor_pedrpc_server (pedrpc.server):
         pcap_log_path = "%s/%d.pcap" % (self.log_path, test_number)
         self.pcap_thread = pcap_thread(self, self.pcap, pcap_log_path)
         self.pcap_thread.start()
-
-        self.log("PCAP thread instantiated. logging to: %s" % pcap_log_path)
 
 
     def log (self, msg="", level=1):

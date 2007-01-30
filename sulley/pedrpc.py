@@ -61,13 +61,13 @@ class client:
         '''
 
         if self.__server_sock != None:
-            self.__log("closing server socket")
+            self.__debug("closing server socket")
             self.__server_sock.close()
             self.__server_sock = None
 
 
     ####################################################################################################################
-    def __log (self, msg):
+    def __debug (self, msg):
         if self.__dbg_flag:
             print "PED-RPC> %s" % msg
 
@@ -115,14 +115,6 @@ class client:
         # snag the return value.
         ret = self.__pickle_recv()
 
-        while 1:
-            try:
-                self.__pickle_send((method_name, (args, kwargs)))
-                break
-            except:
-                # re-connect to the PED-RPC server if the sock died.
-                self.__connect()
-
         # close the sock and return.
         self.__disconnect()
         return ret
@@ -141,10 +133,22 @@ class client:
         '''
 
         try:
-            length   = long(self.__server_sock.recv(4), 16)
-            received = self.__server_sock.recv(length)
+            # XXX - this should NEVER fail, but alas, it does and for the time being i can't figure out why.
+            #       it gets worse. you would think that simply returning here would break things, but it doesn't.
+            #       gotta track this down at some point.
+            length = struct.unpack("<L", self.__server_sock.recv(4))[0]
         except:
-            sys.stderr.write("PED-RPC> connection to server severed\n")
+            return
+
+        try:
+            received = ""
+
+            while length:
+                chunk     = self.__server_sock.recv(length)
+                received += chunk
+                length   -= len(chunk)
+        except:
+            sys.stderr.write("PED-RPC> connection to server severed during recv()\n")
             raise Exception
 
         return cPickle.loads(received)
@@ -163,14 +167,14 @@ class client:
         @raise pdx: An exception is raised if the connection was severed.
         '''
 
-        self.__log("sending: %s" % str(data))
-        data = cPickle.dumps(data)
+        data = cPickle.dumps(data, protocol=2)
+        self.__debug("sending %d bytes" % len(data))
 
         try:
-            self.__server_sock.send("%04x" % len(data))
+            self.__server_sock.send(struct.pack("<L", len(data)))
             self.__server_sock.send(data)
         except:
-            sys.stderr.write("PED-RPC> connection to server severed\n")
+            sys.stderr.write("PED-RPC> connection to server severed during send()\n")
             raise Exception
 
 
@@ -201,13 +205,13 @@ class server:
         '''
 
         if self.__client_sock != None:
-            self.__log("closing client socket")
+            self.__debug("closing client socket")
             self.__client_sock.close()
             self.__client_sock = None
 
 
     ####################################################################################################################
-    def __log (self, msg):
+    def __debug (self, msg):
         if self.__dbg_flag:
             print "PED-RPC> %s" % msg
 
@@ -225,13 +229,18 @@ class server:
         '''
 
         try:
-            length   = long(self.__client_sock.recv(4), 16)
-            received = self.__client_sock.recv(length)
+            length   = struct.unpack("<L", self.__client_sock.recv(4))[0]
+            received = ""
 
-            return cPickle.loads(received)
+            while length:
+                chunk     = self.__client_sock.recv(length)
+                received += chunk
+                length   -= len(chunk)
         except:
-            sys.stderr.write("PED-RPC> connection client severed\n")
+            sys.stderr.write("PED-RPC> connection client severed during recv()\n")
             raise Exception
+
+        return cPickle.loads(received)
 
 
     ####################################################################################################################
@@ -247,20 +256,20 @@ class server:
         @raise pdx: An exception is raised if the connection was severed.
         '''
 
-        self.__log("sending: %s" % str(data))
-        data = cPickle.dumps(data)
+        data = cPickle.dumps(data, protocol=2)
+        self.__debug("sending %d bytes" % len(data))
 
         try:
-            self.__client_sock.send("%04x" % len(data))
+            self.__client_sock.send(struct.pack("<L", len(data)))
             self.__client_sock.send(data)
         except:
-            sys.stderr.write("PED-RPC> connection to client severed\n")
+            sys.stderr.write("PED-RPC> connection to client severed during send()\n")
             raise Exception
 
 
     ####################################################################################################################
     def serve_forever (self):
-        self.__log("serving up a storm")
+        self.__debug("serving up a storm")
 
         while 1:
             # close any pre-existing socket.
@@ -269,12 +278,12 @@ class server:
             # accept a client connection.
             (self.__client_sock, self.__client_address) = self.__server.accept()
 
-            self.__log("accepted connection from %s:%d" % (self.__client_address[0], self.__client_address[1]))
+            self.__debug("accepted connection from %s:%d" % (self.__client_address[0], self.__client_address[1]))
 
             # recieve the method name and arguments, continue on socket disconnect.
             try:
                 (method_name, (args, kwargs)) = self.__pickle_recv()
-                self.__log("%s(args=%s, kwargs=%s)" % (method_name, args, kwargs))
+                self.__debug("%s(args=%s, kwargs=%s)" % (method_name, args, kwargs))
             except:
                 continue
 

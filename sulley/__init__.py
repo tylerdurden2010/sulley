@@ -379,7 +379,7 @@ def s_static (value, name=None):
     blocks.CURRENT.push(static)
 
 
-def s_string (value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, name=None):
+def s_string (value, **kwargs):
     '''
     Push a string onto the current block stack.
 
@@ -397,11 +397,11 @@ def s_string (value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, n
     @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    s = primitives.string(value, size, padding, encoding, fuzzable, name)
+    s = primitives.string(value, **kwargs)
     blocks.CURRENT.push(s)
 
 
-def s_bit_field (value, width, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+def s_bit_field (value, width, **kwargs):
     '''
     Push a variable length bit field onto the current block stack.
 
@@ -425,11 +425,11 @@ def s_bit_field (value, width, max_num=None, endian="<", format="binary", signed
     @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    bit_field = primitives.bit_field(value, width, max_num, endian, format, signed, full_range, fuzzable, name)
+    bit_field = primitives.bit_field(value, width, **kwargs)
     blocks.CURRENT.push(bit_field)
 
 
-def s_byte (value, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+def s_byte (value, **kwargs):
     '''
     Push a byte onto the current block stack.
 
@@ -451,11 +451,11 @@ def s_byte (value, max_num=None, endian="<", format="binary", signed=False, full
     @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    byte = primitives.byte(value, max_num, endian, format, signed, full_range, fuzzable, name)
+    byte = primitives.byte(value, **kwargs)
     blocks.CURRENT.push(byte)
 
 
-def s_word (value, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+def s_word (value, **kwargs):
     '''
     Push a word onto the current block stack.
 
@@ -477,11 +477,11 @@ def s_word (value, max_num=None, endian="<", format="binary", signed=False, full
     @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    word = primitives.word(value, max_num, endian, format, signed, full_range, fuzzable, name)
+    word = primitives.word(value, **kwargs)
     blocks.CURRENT.push(word)
 
 
-def s_dword (value, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+def s_dword (value, **kwargs):
     '''
     Push a double word onto the current block stack.
 
@@ -503,11 +503,11 @@ def s_dword (value, max_num=None, endian="<", format="binary", signed=False, ful
     @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    dword = primitives.dword(value, max_num, endian, format, signed, full_range, fuzzable, name)
+    dword = primitives.dword(value, **kwargs)
     blocks.CURRENT.push(dword)
 
 
-def s_qword (value, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+def s_qword (value, **kwargs):
     '''
     Push a quad word onto the current block stack.
 
@@ -529,7 +529,7 @@ def s_qword (value, max_num=None, endian="<", format="binary", signed=False, ful
     @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    qword = primitives.qword(value, max_num, endian, format, signed, full_range, fuzzable, name)
+    qword = primitives.qword(value, **kwargs)
     blocks.CURRENT.push(qword)
 
 

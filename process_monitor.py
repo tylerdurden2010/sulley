@@ -19,6 +19,7 @@ PORT  = 26002
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
 USAGE = "USAGE: process_monitor.py"                                                                \
         "\n    <-c|--crash_bin FILENAME> filename to serialize crash bin class to"                 \
+        "\n    [-p|--proc_name NAME]     process name to search for and attach to"                 \
         "\n    [-i|--ignore_pid PID]     ignore this PID when searching for the target process"    \
         "\n    [-l|--log_level LEVEL]    log level (default 1), increase for more verbosity"
 
@@ -134,7 +135,7 @@ class debugger_thread (threading.Thread):
 
 ########################################################################################################################
 class process_monitor_pedrpc_server (pedrpc.server):
-    def __init__ (self, host, port, crash_filename, ignore_pid=None, log_level=1):
+    def __init__ (self, host, port, crash_filename, proc_name=None, ignore_pid=None, log_level=1):
         '''
         @type  host:           String
         @param host:           Hostname or IP address
@@ -142,6 +143,8 @@ class process_monitor_pedrpc_server (pedrpc.server):
         @param port:           Port to bind server to
         @type  crash_filename: String
         @param crash_filename: Name of file to (un)serialize crash bin to/from
+        @type  proc_name:      String
+        @param proc_name:      (Optional, def=None) Process name to search for and attach to
         @type  ignore_pid:     Integer
         @param ignore_pid:     (Optional, def=None) Ignore this PID when searching for the target process
         @type  log_level:      Integer
@@ -152,10 +155,10 @@ class process_monitor_pedrpc_server (pedrpc.server):
         pedrpc.server.__init__(self, host, port)
 
         self.crash_filename   = crash_filename
+        self.proc_name        = proc_name
         self.ignore_pid       = ignore_pid
         self.log_level        = log_level
 
-        self.proc_name        = None
         self.stop_commands    = []
         self.start_commands   = []
         self.test_number      = None
@@ -176,6 +179,7 @@ class process_monitor_pedrpc_server (pedrpc.server):
         self.log("Process Monitor PED-RPC server initialized:")
         self.log("\t crash file:  %s" % self.crash_filename)
         self.log("\t # records:   %d" % len(self.crash_bin.bins))
+        self.log("\t proc name:   %s" % self.proc_name)
         self.log("\t log level:   %d" % self.log_level)
         self.log("awaiting requests...")
 
@@ -188,7 +192,7 @@ class process_monitor_pedrpc_server (pedrpc.server):
         return True
 
 
-    def crash_synopsis (self):
+    def get_crash_synopsis (self):
         '''
         Return the last recorded crash synopsis.
 
@@ -249,7 +253,13 @@ class process_monitor_pedrpc_server (pedrpc.server):
 
         av = self.debugger_thread.access_violation
 
+        # if there was an access violation, wait for the debugger thread to finish then kill thread handle.
+        # it is important to wait for the debugger thread to finish because it could be taking its sweet ass time
+        # uncovering the details of the access violation.
         if av:
+            while self.debugger_thread.isAlive():
+                time.sleep(1)
+
             self.debugger_thread = None
 
         # serialize the crash bin to disk.
@@ -261,7 +271,6 @@ class process_monitor_pedrpc_server (pedrpc.server):
         for bin in self.crash_bin.bins.keys():
             crashes += len(self.crash_bin.bins[bin])
 
-        self.log("crash bin contains %d bins with %d entries" % (bins, crashes), 3)
         return not av
 
 
@@ -275,6 +284,12 @@ class process_monitor_pedrpc_server (pedrpc.server):
 
         self.log("pre_send(%d)" % test_number, 10)
         self.test_number = test_number
+
+        # unserialize the crash bin from disk. this ensures we have the latest copy (ie: vmware image is cycling).
+        try:
+            self.crash_bin.import_file(self.crash_filename)
+        except:
+            pass
 
         # if we don't already have a debugger thread, instantiate and start one now.
         if not self.debugger_thread or not self.debugger_thread.isAlive():
@@ -343,24 +358,25 @@ class process_monitor_pedrpc_server (pedrpc.server):
 if __name__ == "__main__":
     # parse command line options.
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "c:i:l:", ["crash_bin=", "ignore_pid=", "log_level="])
+        opts, args = getopt.getopt(sys.argv[1:], "c:i:l:p:", ["crash_bin=", "ignore_pid=", "log_level=", "proc_name="])
     except getopt.GetoptError:
         ERR(USAGE)
 
-    crash_bin = ignore_pid = None
+    crash_bin = ignore_pid = proc_name = None
     log_level = 1
 
     for opt, arg in opts:
         if opt in ("-c", "--crash_bin"):   crash_bin  = arg
         if opt in ("-i", "--ignore_pid"):  ignore_pid = int(arg)
         if opt in ("-l", "--log_level"):   log_level  = int(arg)
+        if opt in ("-p", "--proc_Name"):   proc_name  = arg
 
     if not crash_bin:
         ERR(USAGE)
 
     # spawn the PED-RPC servlet.
     try:
-        servlet = process_monitor_pedrpc_server("0.0.0.0", PORT, crash_bin, ignore_pid, log_level)
+        servlet = process_monitor_pedrpc_server("0.0.0.0", PORT, crash_bin, proc_name, ignore_pid, log_level)
         servlet.serve_forever()
     except:
         pass

@@ -115,132 +115,23 @@ if s_block_start("body", encoder=trend_xor_encode):
 # [in] long arg_6
 # );
 
-s_initialize("5168: op-1")
-if s_block_start("everything", encoder=rpc_request_encoder):
-    # [in] long trend_req_num,
-    s_group("subs", values=map(chr, range(1, 22)))
-    s_static("\x00")        # subs is actually a little endian word
-    s_static("\x01\x00")    # opcode
+for op, end in [(0x1, 22), (0x2, 19), (0x3, 85), (0x5, 25), (0xa, 49), (0x1f, 25)]:
+    s_initialize("5168: op-%x" % op)
+    if s_block_start("everything", encoder=rpc_request_encoder):
+        # [in] long trend_req_num,
+        s_group("subs", values=map(chr, range(1, end)))
+        s_static("\x00")                 # subs is actually a little endian word
+        s_static(struct.pack("<H", op))  # opcode
 
-    # [in][size_is(arg_4)] byte overflow_str[],
-    s_size("the string")
-    if s_block_start("the string", group="subs"):
-        s_static("A"*0x5000, name="arg3")
+        # [in][size_is(arg_4)] byte overflow_str[],
+        s_size("the string")
+        if s_block_start("the string", group="subs"):
+            s_static("A"*0x5000, name="arg3")
         s_block_end()
-
-    # [in] long arg_4,
-    s_size("the string")
-
-    # [in] long arg_6
-    s_static(struct.pack("<L", 0x5000)) # output buffer size
-s_block_end()
-
-
-s_initialize("5168: op-2")
-if s_block_start("everything", encoder=rpc_request_encoder):
-    # [in] long trend_req_num,
-    s_group("subs", values=map(chr, range(1, 19)))
-    s_static("\x00")        # subs is actually a little endian word
-    s_static("\x02\x00")    # opcode
-
-    # [in][size_is(arg_4)] byte overflow_str[],
-    s_size("the string")
-    if s_block_start("the string", group="subs"):
-        s_static("A"*0x5000, name="arg3")
-        #s_string("A"*100, name="arg3")
-        s_block_end()
-
-    # [in] long arg_4,
-    s_size("the string")
-
-    # [in] long arg_6
-    s_static(struct.pack("<L", 0x5000)) # output buffer size
-s_block_end()
-
-
-s_initialize("5168: op-3")
-if s_block_start("everything", encoder=rpc_request_encoder):
-    # [in] long trend_req_num,
-    s_group("subs", values=map(chr, range(1, 85)))
-    s_static("\x00")        # subs is actually a little endian word
-    s_static("\x03\x00")    # opcode
-
-    # [in][size_is(arg_4)] byte overflow_str[],
-    s_size("the string")
-    if s_block_start("the string", group="subs"):
-        s_static("A"*0x5000, name="arg3")
-        #s_string("A"*100, name="arg3")
-        s_block_end()
-
-    # [in] long arg_4,
-    s_size("the string")
-
-    # [in] long arg_6
-    s_static(struct.pack("<L", 0x5000)) # output buffer size
-s_block_end()
-
-
-s_initialize("5168: op-5")
-if s_block_start("everything", encoder=rpc_request_encoder):
-    # [in] long trend_req_num,
-    s_group("subs", values=map(chr, range(0, 25)))
-    s_static("\x00")        # subs is actually a little endian word
-    s_static("\x05\x00")    # opcode
-
-    # [in][size_is(arg_4)] byte overflow_str[],
-    s_size("the string")
-    if s_block_start("the string", group="subs"):
-        s_static("A"*0x5000, name="arg3")
-        #s_string("A"*100, name="arg3")
-        s_block_end()
-
-    # [in] long arg_4,
-    s_size("the string")
-
-    # [in] long arg_6
-    s_static(struct.pack("<L", 0x5000)) # output buffer size
-s_block_end()
-
-
-s_initialize("5168: op-a")
-if s_block_start("everything", encoder=rpc_request_encoder):
-    # [in] long trend_req_num,
-    s_group("subs", values=map(chr, range(1, 49)))
-    s_static("\x00")        # subs is actually a little endian word
-    s_static("\x0a\x00")    # opcode
-
-    # [in][size_is(arg_4)] byte overflow_str[],
-    s_size("the string")
-    if s_block_start("the string", group="subs"):
-        s_static("A"*0x5000, name="arg3")
-        #s_string("A"*100, name="arg3")
-        s_block_end()
-
-    # [in] long arg_4,
-    s_size("the string")
-
-    # [in] long arg_6
-    s_static(struct.pack("<L", 0x5000)) # output buffer size
-s_block_end()
-
-
-s_initialize("5168: op-1f")
-if s_block_start("everything", encoder=rpc_request_encoder):
-    # [in] long trend_req_num,
-    s_group("subs", values=map(chr, range(0, 25)))
-    s_static("\x00")        # subs is actually a little endian word
-    s_static("\x1f\x00")    # opcode
-
-    # [in][size_is(arg_4)] byte overflow_str[],
-    s_size("the string")
-    if s_block_start("the string", group="subs"):
-        s_static("A"*0x5000, name="arg3")
-        #s_string("A"*100, name="arg3")
-        s_block_end()
-
-    # [in] long arg_4,
-    s_size("the string")
-
-    # [in] long arg_6
-    s_static(struct.pack("<L", 0x5000)) # output buffer size
-s_block_end()
+    
+        # [in] long arg_4,
+        s_size("the string")
+    
+        # [in] long arg_6
+        s_static(struct.pack("<L", 0x5000)) # output buffer size
+    s_block_end()
