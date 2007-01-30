@@ -29,10 +29,49 @@ class target:
         self.host      = host
         self.port      = port
 
-        # set this manually once target is instantiated.
-        self.netmon    = None
-        self.procmon   = None
-        self.vmcontrol = None
+        # set these manually once target is instantiated.
+        self.netmon            = None
+        self.procmon           = None
+        self.vmcontrol         = None
+        self.netmon_options    = {}
+        self.procmon_options   = {}
+        self.vmcontrol_options = {}
+
+
+    def pedrpc_connect (self):
+        '''
+        # pass specified target parameters to the PED-RPC server.
+        '''
+
+        # wait for the process monitor to come alive and then set its options.
+        if self.procmon:
+            while 1:
+                try:
+                    if self.procmon.alive():
+                        break
+                except:
+                    pass
+
+                time.sleep(1)
+
+            # connection established.
+            for key in self.procmon_options.keys():
+                eval('self.procmon.set_%s(self.procmon_options["%s"])' % (key, key))
+
+        # wait fro the network monitor to come alive and then set its options.
+        if self.netmon:
+            while 1:
+                try:
+                    if self.netmon.alive():
+                        break
+                except:
+                    pass
+
+                time.sleep(1)
+
+            # connection established.
+            for key in self.netmon_options.keys():
+                eval('self.netmon.set_%s(self.netmon_options["%s"])' % (key, key))
 
 
 ########################################################################################################################
@@ -89,13 +128,13 @@ class session (pgraph.graph):
         pgraph.graph.__init__(self)
 
         self.session_filename    = session_filename
-        self.skip                = kwargs.get("skip", 0)
-        self.sleep_time          = kwargs.get("sleep_time", 1.0)
-        self.log_level           = kwargs.get("log_level", 1)
-        self.proto               = kwargs.get("proto", "tcp")
+        self.skip                = kwargs.get("skip",             0)
+        self.sleep_time          = kwargs.get("sleep_time",       1.0)
+        self.log_level           = kwargs.get("log_level",        2)
+        self.proto               = kwargs.get("proto",            "tcp")
         self.restart_interval    = kwargs.get("restart_interval", 0)
-        self.timeout             = kwargs.get("timeout", 5.0)
-        self.web_port            = kwargs.get("web_port", 26000)
+        self.timeout             = kwargs.get("timeout",          5.0)
+        self.web_port            = kwargs.get("web_port",         26000)
 
         self.total_num_mutations = 0
         self.total_mutant_index  = 0
@@ -153,6 +192,10 @@ class session (pgraph.graph):
         @param target: Target to add to session
         '''
 
+        # pass specified target parameters to the PED-RPC server.
+        target.pedrpc_connect()
+
+        # add target to internal list.
         self.targets.append(target)
 
 
@@ -279,8 +322,9 @@ class session (pgraph.graph):
             self.log("current fuzz path: %s" % current_path, 2)
             self.log("fuzzed %d of %d total cases" % (self.total_mutant_index, self.total_num_mutations), 2)
 
-            # loop through all possible mutations of the fuzz node.
             done_with_fuzz_node = False
+
+            # loop through all possible mutations of the fuzz node.
             while not done_with_fuzz_node:
                 # serialize session state to disk.
                 self.export_file()
@@ -330,35 +374,30 @@ class session (pgraph.graph):
                             # now send the current node we are fuzzing.
                             self.transmit(sock, self.fuzz_node, edge, target)
 
-                            # if the user registered a post-send function, pass it the sock and let it do the deed.
-                            self.post_send(sock)
-
-                            # done with the socket.
-                            sock.close()
-
                             # if we reach this point the send was successful for break out of the while(1).
                             break
                         except:
+                            # close the socket.
+                            sock.close()
+
                             self.log("failed connecting to %s:%d" % (target.host, target.port))
+
                             self.log("restarting target and trying again")
                             self.restart_target(target)
+
+                    # if the user registered a post-send function, pass it the sock and let it do the deed.
+                    # we do this outside the try/except loop because if our fuzz causes a crash then the post_send()
+                    # will likely fail and we don't want to sit in an endless loop.
+                    self.post_send(sock)
+
+                    # done with the socket.
+                    sock.close()
 
                     # delay in between test cases.
                     time.sleep(self.sleep_time)
 
-                    # check if our fuzz crashed the target.
-                    if target.procmon and not target.procmon.post_send():
-                        self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
-                        self.procmon_results[self.total_mutant_index] = target.procmon.crash_synopsis()
-
-                        # start the target back up.
-                        self.restart_target(target, stop_first=False)
-
-                    # see how many bytes the sniffer recorded.
-                    if target.netmon:
-                        bytes = target.netmon.post_send()
-                        self.log("netmon captured %d bytes for test case #%d" % (bytes, self.total_mutant_index), 2)
-                        self.netmon_results[self.total_mutant_index] = bytes
+                    # poll the PED-RPC endpoints (netmon, procmon etc...) for the target.
+                    self.poll_pedrpc(target)
 
             # recursively fuzz the remainder of the nodes in the session graph.
             self.fuzz(self.fuzz_node, path)
@@ -462,6 +501,31 @@ class session (pgraph.graph):
 
 
     ####################################################################################################################
+    def poll_pedrpc (self, target):
+        '''
+        Poll the PED-RPC endpoints (netmon, procmon etc...) for the target.
+
+        @type  target: session.target
+        @param target: Session target whose PED-RPC services we are polling
+        '''
+
+        # kill the pcap thread and see how many bytes the sniffer recorded.
+        if target.netmon:
+            bytes = target.netmon.post_send()
+            self.log("netmon captured %d bytes for test case #%d" % (bytes, self.total_mutant_index), 2)
+            self.netmon_results[self.total_mutant_index] = bytes
+
+        # check if our fuzz crashed the target. procmon.post_send() returns False if the target access violated.
+        if target.procmon and not target.procmon.post_send():
+            self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
+            self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
+            self.log(self.procmon_results[self.total_mutant_index].split("\n")[0], 2)
+
+            # start the target back up.
+            self.restart_target(target, stop_first=False)
+
+
+    ####################################################################################################################
     def post_send (self, sock):
         '''
         Overload or replace this routine to specify actions to run prior to each fuzz request. The order of events is
@@ -513,10 +577,12 @@ class session (pgraph.graph):
 
         # vm restarting is the preferred method so try that first.
         if target.vmcontrol:
+            self.log("restarting target virtual machine")
             target.vmcontrol.restart_target()
 
-        # otherwise if we have a process monitor connection, restart the target process.
+        # otherwise if we have a connected process monitor, restart the target process.
         elif target.procmon:
+            self.log("restarting target process")
             if stop_first:
                 target.procmon.stop_target()
 
@@ -524,6 +590,9 @@ class session (pgraph.graph):
 
             # give the process a few seconds to settle in.
             time.sleep(3)
+
+        # pass specified target parameters to the PED-RPC server to re-establish connections.
+        target.pedrpc_connect()
 
 
     ####################################################################################################################

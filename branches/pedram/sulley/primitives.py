@@ -180,7 +180,7 @@ class group (base_primitive):
         self.original_value = self.values[0]
         self.rendered       = ""
         self.fuzz_complete  = False
-        self.mutant_index   = 1      # XXX - should start mutating at 1, since the first item is the default.
+        self.mutant_index   = 1      # XXX - should start mutating at 1, since the first item is the default. right?
 
 
     def mutate (self):
@@ -338,7 +338,7 @@ class static (base_primitive):
 
 ########################################################################################################################
 class string (base_primitive):
-    def __init__ (self, value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, name=None):
+    def __init__ (self, value, **kwargs):
         '''
         Primitive that cycles through a library of "bad" strings.
 
@@ -357,11 +357,11 @@ class string (base_primitive):
         '''
 
         self.value         = self.original_value = value
-        self.size          = size
-        self.padding       = padding
-        self.encoding      = encoding
-        self.fuzzable      = fuzzable
-        self.name          = name
+        self.size          = kwargs.get("size",     -1)
+        self.padding       = kwargs.get("padding",  "\x00")
+        self.encoding      = kwargs.get("encoding", "ascii")
+        self.fuzzable      = kwargs.get("fuzzable", True)
+        self.name          = kwargs.get("name",     None)
 
         self.rendered      = ""        # rendered value
         self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
@@ -498,7 +498,7 @@ class string (base_primitive):
 
 ########################################################################################################################
 class bit_field (base_primitive):
-    def __init__ (self, value, width, max_num=None,  endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+    def __init__ (self, value, width, **kwargs):
         '''
         The bit field primitive represents a number of variable length and is used to define all other integer types.
 
@@ -525,13 +525,13 @@ class bit_field (base_primitive):
 
         self.value         = self.original_value = value
         self.width         = width
-        self.max_num       = max_num
-        self.endian        = endian
-        self.format        = format
-        self.signed        = signed
-        self.full_range    = full_range
-        self.fuzzable      = fuzzable
-        self.name          = name
+        self.max_num       = kwargs.get("max_num",     None)
+        self.endian        = kwargs.get("endian",      "<")
+        self.format        = kwargs.get("format",      "binary")
+        self.signed        = kwargs.get("signed",      False)
+        self.full_range    = kwargs.get("full_range",  False)
+        self.fuzzable      = kwargs.get("fuzzable",    True)
+        self.name          = kwargs.get("name",        None)
 
         self.rendered      = ""        # rendered value
         self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
@@ -667,35 +667,35 @@ class bit_field (base_primitive):
 
 ########################################################################################################################
 class byte (bit_field):
-    def __init__ (self, value=0, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+    def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
             value = struct.unpack(endian + "B", value)[0]
 
-        bit_field.__init__(self, value, 8, max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 8, **kwargs)
 
 
 ########################################################################################################################
 class word (bit_field):
-    def __init__ (self, value=0, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+    def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
             value = struct.unpack(endian + "H", value)[0]
 
-        bit_field.__init__(self, value, 16, max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 16, **kwargs)
 
 
 ########################################################################################################################
 class dword (bit_field):
-    def __init__ (self, value=0, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+    def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
             value = struct.unpack(endian + "L", value)[0]
 
-        bit_field.__init__(self, value, 32, max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 32, **kwargs)
 
 
 ########################################################################################################################
 class qword (bit_field):
-    def __init__ (self, value=0, max_num=None, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
+    def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
             value = struct.unpack(endian + "Q", value)[0]
 
-        bit_field.__init__(self, value, 64, max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 64, **kwargs)
