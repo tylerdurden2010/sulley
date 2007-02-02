@@ -33,19 +33,19 @@ if s_block_start("attributes"):
     if s_block_start("attribute"):
         # default valid null block
         s_string("\x00\x00\x00\x00")
-        s_block_end()
-
     s_block_end()
+
+s_block_end()
 
 # toss out some large strings when the lengths are anything but valid.
 if s_block_start("fuzz block 1", dep="attribute length", dep_value=4, dep_compare="!="):
     s_static("A"*5000)
-    s_block_end()
+s_block_end()
 
 # toss out some large strings when the lengths are anything but valid.
 if s_block_start("fuzz block 2", dep="message length", dep_value=8, dep_compare="!="):
     s_static("B"*5000)
-    s_block_end()
+s_block_end()
 
 
 ########################################################################################################################

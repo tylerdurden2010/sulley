@@ -601,7 +601,7 @@ class session (pgraph.graph):
         Called by fuzz() on first run (not on recursive re-entry) to initialize variables, web interface, etc...
         '''
 
-        # XXX - TODO - expand this when we hvae parallel fuzzing setup.
+        # XXX - TODO - expand this when we have parallel fuzzing setup.
         target = self.targets[0]
 
         self.total_mutant_index  = 0
