@@ -104,12 +104,12 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, session_filename, **kwargs):
+    def __init__ (self, session_filename=None, **kwargs):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
         @type  session_filename: String
-        @param session_filename: Filename to serialize persistant data to
+        @param session_filename: (Optional, def=None) Filename to serialize persistant data to
         @type  skip:             Integer
         @param skip:             (Optional, def=0) Number of test cases to skip
         @type  sleep_time:       Float
@@ -127,7 +127,7 @@ class session (pgraph.graph):
         # run the parent classes initialization routine first.
         pgraph.graph.__init__(self)
 
-        self.session_filename    = session_filename
+        self.session_filename    = kwargs.get("session_filename", None)
         self.skip                = kwargs.get("skip",             0)
         self.sleep_time          = kwargs.get("sleep_time",       1.0)
         self.log_level           = kwargs.get("log_level",        2)
@@ -270,6 +270,9 @@ class session (pgraph.graph):
         @see: import_file()
         '''
 
+        if not self.session_filename:
+            return
+
         # trim out attributes that can't be serialized.
         targets      = self.targets
         self.targets = None
@@ -326,9 +329,6 @@ class session (pgraph.graph):
 
             # loop through all possible mutations of the fuzz node.
             while not done_with_fuzz_node:
-                # serialize session state to disk.
-                self.export_file()
-
                 # if we need to pause, do so.
                 self.pause()
 
@@ -493,6 +493,10 @@ class session (pgraph.graph):
         '''
         If thet pause flag is raised, enter an endless loop until it is lowered.
         '''
+
+        # serialize session state to disk whenever the user pauses.
+        if self.pause_flag:
+            self.export_file()
 
         while 1:
             if self.pause_flag:
