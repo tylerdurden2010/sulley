@@ -1,35 +1,9 @@
-import struct
 import math
-import re
+import struct
 
 
 ########################################################################################################################
-def crc16 (string, value=0):
-    '''
-    CRC-16 poly: p(x) = x**16 + x**15 + x**2 + 1
-    '''
-
-    crc16_table = []
-
-    for byte in range(256):
-         crc = 0
-
-         for bit in range(8):
-             if (byte ^ crc) & 1: crc = (crc >> 1) ^ 0xa001  # polly
-             else:                crc >>= 1
-
-             byte >>= 1
-
-         crc16_table.append(crc)
-
-    for ch in string:
-        value = crc16_table[ord(ch) ^ (value & 0xff)] ^ (value >> 8)
-
-    return value
-
-
-########################################################################################################################
-def dce_rpc_bind (uuid, version):
+def bind (uuid, version):
     '''
     Generate the data necessary to bind to the specified interface.
     '''
@@ -66,7 +40,7 @@ def dce_rpc_bind (uuid, version):
 
 
 ########################################################################################################################
-def dce_rpc_bind_ack (data):
+def bind_ack (data):
     '''
     Ensure the data is a bind ack and that the
     '''
@@ -83,7 +57,7 @@ def dce_rpc_bind_ack (data):
 
 
 ########################################################################################################################
-def dce_rpc_request (opnum, data):
+def request (opnum, data):
     '''
     Return a list of packets broken into 5k fragmented chunks necessary to make the RPC request.
     '''
@@ -118,74 +92,3 @@ def dce_rpc_request (opnum, data):
 
     # you don't have to send chunks out individually. so make life easier for the user and send them all at once.
     return "".join(frags)
-
-
-########################################################################################################################
-def dnp3 (data, control_code="\x44", src="\x00\x00", dst="\x00\x00"):
-    num_packets = int(math.ceil(float(len(data)) / 250.0))
-    packets     = []
-
-    for i in xrange(num_packets):
-        slice = data[i*250 : (i+1)*250]
-
-        p  = "\x05\x64"
-        p += chr(len(slice))
-        p += control_code
-        p += dst
-        p += src
-
-        chksum = struct.pack("<H", crc16(p))
-
-        p += chksum
-
-        num_chunks = int(math.ceil(float(len(slice) / 16.0)))
-
-        # insert the fragmentation flags / sequence number.
-        # first frag: 0x40, last frag: 0x80
-
-        frag_number = i
-
-        if i == 0:
-            frag_number |= 0x40
-
-        if i == num_packets - 1:
-            frag_number |= 0x80
-
-        p += chr(frag_number)
-
-        for x in xrange(num_chunks):
-            chunk   = slice[i*16 : (i+1)*16]
-            chksum  = struct.pack("<H", crc16(chunk))
-            p      += chksum + chunk
-
-        packets.append(p)
-
-    return packets
-
-
-########################################################################################################################
-def uuid_bin_to_str (uuid):
-    '''
-    Convert a binary UUID to human readable string.
-    '''
-
-    (block1, block2, block3) = struct.unpack("<LHH", uuid[:8])
-    (block4, block5, block6) = struct.unpack(">HHL", uuid[8:16])
-
-    return "%08x-%04x-%04x-%04x-%04x%08x" % (block1, block2, block3, block4, block5, block6)
-
-
-########################################################################################################################
-def uuid_str_to_bin (uuid):
-    '''
-    Ripped from Core Impacket. Converts a UUID string to binary form.
-    '''
-
-    matches = re.match('([\dA-Fa-f]{8})-([\dA-Fa-f]{4})-([\dA-Fa-f]{4})-([\dA-Fa-f]{4})-([\dA-Fa-f]{4})([\dA-Fa-f]{8})', uuid)
-
-    (uuid1, uuid2, uuid3, uuid4, uuid5, uuid6) = map(lambda x: long(x, 16), matches.groups())
-
-    uuid  = struct.pack('<LHH', uuid1, uuid2, uuid3)
-    uuid += struct.pack('>HHL', uuid4, uuid5, uuid6)
-
-    return uuid

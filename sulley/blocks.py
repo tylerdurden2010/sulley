@@ -29,7 +29,7 @@ class request (pgraph.node):
         self.callbacks     = {}      # dictionary of list of sizers / checksums that were unable to complete rendering.
         self.names         = {}      # dictionary of directly accessible primitives.
         self.rendered      = ""      # rendered block structure.
-        self.mutant_index  = 1       # current mutation index.
+        self.mutant_index  = 0       # current mutation index.
 
 
     def mutate (self):
@@ -76,7 +76,7 @@ class request (pgraph.node):
 
     def push (self, item):
         '''
-        Push an item into the block structure. If not block is open, the item goes onto the request stack. otherwise,
+        Push an item into the block structure. If no block is open, the item goes onto the request stack. otherwise,
         the item goes onto the last open blocks stack.
         '''
 
@@ -603,7 +603,7 @@ class size:
     user does not need to be wary of this fact.
     '''
 
-    def __init__ (self, block_name, request, length=4, endian="<", format="binary", signed=False, fuzzable=False, name=None):
+    def __init__ (self, block_name, request, **kwargs):
         '''
         Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
         currently open blocks.
@@ -618,6 +618,8 @@ class size:
         @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
         @type  format:     String
         @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
+        @type  inclusive:  Boolean
+        @param inclusive:  (Optional, def=False) Should the sizer count its own length?
         @type  signed:     Boolean
         @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
         @type  fuzzable:   Boolean
@@ -626,21 +628,22 @@ class size:
         @param name:       Name of this sizer field
         '''
 
-        self.block_name     = block_name
-        self.request        = request
-        self.length         = length
-        self.endian         = endian
-        self.format         = format
-        self.signed         = signed
-        self.fuzzable       = fuzzable
-        self.name           = name
+        self.block_name    = block_name
+        self.request       = request
+        self.length        = kwargs.get("length",    4)
+        self.endian        = kwargs.get("endian",    "<")
+        self.format        = kwargs.get("format",    "binary")
+        self.inclusive     = kwargs.get("inclusive", False)
+        self.signed        = kwargs.get("signed",    False)
+        self.fuzzable      = kwargs.get("fuzzable",  False)
+        self.name          = kwargs.get("name",      None)
 
-        self.bit_field      = primitives.bit_field(0, length*8, endian=endian, format=format, signed=signed)
-        self.rendered       = ""
-        self.fuzz_complete  = self.bit_field.fuzz_complete
-        self.fuzz_library   = self.bit_field.fuzz_library
-        self.mutant_index   = self.bit_field.mutant_index
-        self.value          = self.bit_field.value
+        self.bit_field     = primitives.bit_field(0, self.length*8, endian=self.endian, format=self.format, signed=self.signed)
+        self.rendered      = ""
+        self.fuzz_complete = self.bit_field.fuzz_complete
+        self.fuzz_library  = self.bit_field.fuzz_library
+        self.mutant_index  = self.bit_field.mutant_index
+        self.value         = self.bit_field.value
 
 
     def mutate (self):
@@ -672,10 +675,17 @@ class size:
 
         self.rendered = ""
 
+        # if the sizer is fuzzable and we have not yet exhausted the the possible bit field values, use the fuzz value.
+        if self.fuzzable and self.bit_field.mutant_index and not self.bit_field.fuzz_complete:
+            self.rendered = self.bit_field.render()
+        
         # if the target block for this sizer is already closed, render the size.
-        if self.block_name in self.request.closed_blocks:
+        elif self.block_name in self.request.closed_blocks:
+            if self.inclusive: self_size = self.length
+            else:              self_size = 0
+
             block                = self.request.closed_blocks[self.block_name]
-            self.bit_field.value = len(block.rendered)
+            self.bit_field.value = len(block.rendered) + self_size
             self.rendered        = self.bit_field.render()
 
         # otherwise, add this sizer block to the factories callback list.

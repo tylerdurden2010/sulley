@@ -1,10 +1,3 @@
-"""
-Trend Micro Control Manager
-DcsProcessor.exe: Damage cleanup service server
-http://bakemono/mediawiki/index.php/Trend_Micro:Control_Manager
-see also: pedram's pwned notebook page 3
-"""
-
 from sulley import *
 
 import struct
@@ -54,11 +47,17 @@ def trend_xor_decode (str):
 # dce rpc request encoder used for trend server protect 5168 RPC service.
 # opnum is always zero.
 def rpc_request_encoder (data):
-    return s_utils.dce_rpc_request(0, data)
+    return utils.dcerpc.request(0, data)
 
 
 ########################################################################################################################
 s_initialize("20901")
+"""
+    Trend Micro Control Manager (DcsProcessor.exe)
+    http://bakemono/mediawiki/index.php/Trend_Micro:Control_Manager
+
+    This fuzz found nothing! need to uncover more protocol details. See also: pedram's pwned notebook page 3, 4.
+"""
 
 # dword 1, error: 0x10000001, do something:0x10000002, 0x10000003 (>0x10000002)
 s_group("magic", values=["\x02\x00\x00\x10", "\x03\x00\x00\x10"])
@@ -66,10 +65,9 @@ s_group("magic", values=["\x02\x00\x00\x10", "\x03\x00\x00\x10"])
 # dword 2, size of body
 s_size("body")
 
-# dword 3, crc32(block) (copy from eax at 0041EE8B or NOP the check at)
+# dword 3, crc32(block) (copy from eax at 0041EE8B)
+# XXX - CRC is non standard, nop out jmp at 0041EE99 and use bogus value:
 #s_checksum("body", algorithm="crc32")
-
-# CRC is non standard, nop out jmp at 0041EE99 and use bogus value:
 s_static("\xff\xff\xff\xff")
 
 # the body of the trend request contains a variable number of (2-byte) TLVs
@@ -101,18 +99,25 @@ s_block_end("body")
 
 
 ########################################################################################################################
-# // opcode: 0x00, address: 0x65741030
-# // uuid: 25288888-bd5b-11d1-9d53-0080c83a5c2c
-# // version: 1.0
-#
-# error_status_t rpc_opnum_0 (
-# [in] handle_t arg_1,                          // not sent on wire
-# [in] long trend_req_num,
-# [in][size_is(arg_4)] byte overflow_str[],
-# [in] long arg_4,
-# [out][size_is(arg_6)] byte arg_5[],           // not sent on wire
-# [in] long arg_6
-# );
+"""
+    Trend Micro Server Protect (SpNTsvc.exe)
+
+    This fuzz uncovered a bunch of DoS and code exec bugs. The obvious code exec bugs were documented and released to
+    the vendor. See also: pedram's pwned notebook page 1, 2.
+
+    // opcode: 0x00, address: 0x65741030
+    // uuid: 25288888-bd5b-11d1-9d53-0080c83a5c2c
+    // version: 1.0
+
+    error_status_t rpc_opnum_0 (
+    [in] handle_t arg_1,                          // not sent on wire
+    [in] long trend_req_num,
+    [in][size_is(arg_4)] byte overflow_str[],
+    [in] long arg_4,
+    [out][size_is(arg_6)] byte arg_5[],           // not sent on wire
+    [in] long arg_6
+    );
+"""
 
 for op, submax in [(0x1, 22), (0x2, 19), (0x3, 85), (0x5, 25), (0xa, 49), (0x1f, 25)]:
     s_initialize("5168: op-%x" % op)
