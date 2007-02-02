@@ -1,53 +1,17 @@
-import struct
-
-import blocks
-import primitives
-import sex
-
-# all defined legos must be added to this bin.
-BIN = {}
-
-########################################################################################################################
-class dns_hostname (blocks.block):
-    def __init__ (self, name, request, value, options={}):
-        blocks.block.__init__(self, name, request, None, None, None, None)
-
-        self.value   = value
-        self.options = options
-
-        if not self.value:
-            raise sex.error("MISSING LEGO.tag DEFAULT VALUE")
-
-########################################################################################################################
-class tag (blocks.block):
-    def __init__ (self, name, request, value, options={}):
-        blocks.block.__init__(self, name, request, None, None, None, None)
-
-        self.value   = value
-        self.options = options
-
-        if not self.value:
-            raise sex.error("MISSING LEGO.tag DEFAULT VALUE")
-
-        # <example>
-        # [delim][string][delim]
-
-        self.push(primitives.delim("<"))
-        self.push(primitives.string(self.value))
-        self.push(primitives.delim(">"))
-
-BIN["tag"] = tag
-
-
 ########################################################################################################################
 ### MSRPC NDR TYPES
 ########################################################################################################################
 
+import struct
+from sulley import blocks, primitives, sex
 
+
+########################################################################################################################
 def ndr_pad (string):
     return "\x00" * ((4 - (len(string) & 3)) & 3)
 
 
+########################################################################################################################
 class ndr_conformant_array (blocks.block):
     '''
     Note: this is not for fuzzing the RPC protocol but rather just representing an NDR string for fuzzing the actual
@@ -82,7 +46,10 @@ class ndr_conformant_array (blocks.block):
         else:
             self.rendered = struct.pack("<L", len(self.rendered)) + self.rendered + ndr_pad(self.rendered)
 
+        return self.rendered
 
+
+########################################################################################################################
 class ndr_string (blocks.block):
     '''
     Note: this is not for fuzzing the RPC protocol but rather just representing an NDR string for fuzzing the actual
@@ -126,7 +93,10 @@ class ndr_string (blocks.block):
                           + self.rendered             \
                           + ndr_pad(self.rendered)
 
+        return self.rendered
 
+
+########################################################################################################################
 class ndr_wstring (blocks.block):
     '''
     Note: this is not for fuzzing the RPC protocol but rather just representing an NDR string for fuzzing the actual
@@ -170,7 +140,4 @@ class ndr_wstring (blocks.block):
                           + self.rendered             \
                           + ndr_pad(self.rendered)
 
-
-BIN["ndr_conformant_array"] = ndr_conformant_array
-BIN["ndr_wstring"]          = ndr_wstring
-BIN["ndr_string"]           = ndr_string
+        return self.rendered

@@ -394,6 +394,7 @@ class session (pgraph.graph):
                     sock.close()
 
                     # delay in between test cases.
+                    self.log("sleeping for %f seconds" % self.sleep_time, 5)
                     time.sleep(self.sleep_time)
 
                     # poll the PED-RPC endpoints (netmon, procmon etc...) for the target.

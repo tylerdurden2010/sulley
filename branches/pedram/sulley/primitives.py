@@ -444,6 +444,7 @@ class string (base_primitive):
         self.add_long_strings("a=")
         self.add_long_strings("&")
         self.add_long_strings(".")
+        self.add_long_strings(",")
         self.add_long_strings("(")
         self.add_long_strings(")")
         self.add_long_strings("]")

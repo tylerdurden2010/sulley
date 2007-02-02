@@ -27,10 +27,10 @@ req = num = None
 #num = "\x04"
 
 def rpc_bind (sock):
-    bind = s_utils.dce_rpc_bind("25288888-bd5b-11d1-9d53-0080c83a5c2c", "1.0")
+    bind = utils.dcerpc.bind("25288888-bd5b-11d1-9d53-0080c83a5c2c", "1.0")
     sock.send(bind)
 
-    s_utils.dce_rpc_bind_ack(sock.recv(1000))
+    utils.dcerpc.bind_ack(sock.recv(1000))
 
 
 def do_single (req, num):

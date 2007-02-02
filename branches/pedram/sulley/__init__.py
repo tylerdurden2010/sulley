@@ -4,7 +4,7 @@ import sulley.pedrpc
 import sulley.primitives
 import sulley.sex
 import sulley.sessions
-import sulley.s_utils
+import sulley.utils
 
 BIG_ENDIAN      = ">"
 LITTLE_ENDIAN   = "<"
@@ -205,7 +205,7 @@ def s_repeat (block_name, min_reps, max_reps, step=1, fuzzable=True, name=None):
     blocks.CURRENT.push(repeat)
 
 
-def s_size (block_name, length=4, endian="<", format="binary", signed=False, fuzzable=False, name=None):
+def s_size (block_name, **kwargs):
     '''
     Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
     currently open blocks.
@@ -220,6 +220,8 @@ def s_size (block_name, length=4, endian="<", format="binary", signed=False, fuz
     @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
     @type  format:     String
     @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
+    @type  inclusive:  Boolean
+    @param inclusive:  (Optional, def=False) Should the sizer count its own length?
     @type  signed:     Boolean
     @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
     @type  fuzzable:   Boolean
@@ -232,7 +234,7 @@ def s_size (block_name, length=4, endian="<", format="binary", signed=False, fuz
     if block_name in blocks.CURRENT.block_stack:
         raise sex.error("CAN NOT ADD A SIZE FOR A BLOCK CURRENTLY IN THE STACK")
 
-    size = blocks.size(block_name, blocks.CURRENT, length, endian, format, signed, fuzzable, name)
+    size = blocks.size(block_name, blocks.CURRENT, **kwargs)
     blocks.CURRENT.push(size)
 
 
@@ -326,18 +328,16 @@ def s_lego (lego_type, value=None, options={}):
 
     # as legos are blocks they must have a name.
     # generate a unique name for this lego.
-    name = "LEGO_%04d" % len(blocks.CURRENT.names)
+    name = "LEGO_%08x" % len(blocks.CURRENT.names)
 
     if not legos.BIN.has_key(lego_type):
         raise sex.error("INVALID LEGO TYPE SPECIFIED: %s" % lego_type)
 
     lego = legos.BIN[lego_type](name, blocks.CURRENT, value, options)
 
-    # access the current blocks stack directly, we don't call blocks.CURRENT.push() as it may leave the lego block open.
-    if not blocks.CURRENT.block_stack:
-        blocks.CURRENT.stack.append(lego)
-    else:
-        blocks.CURRENT.block_stack[-1].push(lego)
+    # push the lego onto the stack and immediately pop to close the block.
+    blocks.CURRENT.push(lego)
+    blocks.CURRENT.pop()
 
 
 def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, name=None):
