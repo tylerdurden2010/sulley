@@ -61,12 +61,12 @@ def rpc_request_encoder (data):
 s_initialize("20901")
 
 # dword 1, error: 0x10000001, do something:0x10000002, 0x10000003 (>0x10000002)
-s_group("dunno", values=["\x02\x00\x00\x10", "\x03\x00\x00\x10"])
+s_group("magic", values=["\x02\x00\x00\x10", "\x03\x00\x00\x10"])
 
 # dword 2, size of body
 s_size("body")
 
-# dword 3, crc32(block) (copy from eax at 0041EE8B)
+# dword 3, crc32(block) (copy from eax at 0041EE8B or NOP the check at)
 #s_checksum("body", algorithm="crc32")
 
 # CRC is non standard, nop out jmp at 0041EE99 and use bogus value:
@@ -84,7 +84,7 @@ if s_block_start("body", encoder=trend_xor_encode):
     s_size("string2", length=2)         # valid length
     if s_block_start("string2"):        # fuzz string
         s_string("B"*10)
-        s_block_end()
+    s_block_end()
 
     # try a table overflow.
     if s_block_start("repeat me"):
@@ -93,12 +93,11 @@ if s_block_start("body", encoder=trend_xor_encode):
         if s_block_start("string3"):    # fuzz string
             s_string("C"*10)
             s_block_end()
-        s_block_end()
+    s_block_end()
 
     # repeat string3 a bunch of times.
     s_repeat("repeat me", min_reps=100, max_reps=1000, step=50)
-
-    s_block_end("body")
+s_block_end("body")
 
 
 ########################################################################################################################
@@ -115,23 +114,23 @@ if s_block_start("body", encoder=trend_xor_encode):
 # [in] long arg_6
 # );
 
-for op, end in [(0x1, 22), (0x2, 19), (0x3, 85), (0x5, 25), (0xa, 49), (0x1f, 25)]:
+for op, submax in [(0x1, 22), (0x2, 19), (0x3, 85), (0x5, 25), (0xa, 49), (0x1f, 25)]:
     s_initialize("5168: op-%x" % op)
     if s_block_start("everything", encoder=rpc_request_encoder):
         # [in] long trend_req_num,
-        s_group("subs", values=map(chr, range(1, end)))
+        s_group("subs", values=map(chr, range(1, submax)))
         s_static("\x00")                 # subs is actually a little endian word
         s_static(struct.pack("<H", op))  # opcode
 
         # [in][size_is(arg_4)] byte overflow_str[],
         s_size("the string")
         if s_block_start("the string", group="subs"):
-            s_static("A"*0x5000, name="arg3")
+            s_static("A" * 0x5000, name="arg3")
         s_block_end()
-    
+
         # [in] long arg_4,
         s_size("the string")
-    
+
         # [in] long arg_6
         s_static(struct.pack("<L", 0x5000)) # output buffer size
     s_block_end()
