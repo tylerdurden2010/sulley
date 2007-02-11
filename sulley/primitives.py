@@ -199,7 +199,7 @@ class group (base_primitive):
             self.value = self.values[0]
             return False
 
-        # step through the value list/
+        # step through the value list.
         self.value = self.values[self.mutant_index]
 
         # increment the mutation count.

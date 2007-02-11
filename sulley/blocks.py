@@ -296,8 +296,6 @@ class block:
     def render (self):
         '''
         Step through every item on this blocks stack and render it. Subsequent blocks recursively render their stacks.
-        The rendered contact is added to request.rendered and the request object is continually passed down the block
-        structure.
         '''
 
         # add the completed block to the request dictionary.
@@ -472,7 +470,7 @@ class checksum:
             block_data    = self.request.closed_blocks[self.block_name].rendered
             self.rendered = self.checksum(block_data)
 
-        # otherwise, add this checksum block to the factories callback list.
+        # otherwise, add this checksum block to the requests callback list.
         else:
             if not self.request.callbacks.has_key(self.block_name):
                 self.request.callbacks[self.block_name] = []
@@ -678,7 +676,7 @@ class size:
         # if the sizer is fuzzable and we have not yet exhausted the the possible bit field values, use the fuzz value.
         if self.fuzzable and self.bit_field.mutant_index and not self.bit_field.fuzz_complete:
             self.rendered = self.bit_field.render()
-        
+
         # if the target block for this sizer is already closed, render the size.
         elif self.block_name in self.request.closed_blocks:
             if self.inclusive: self_size = self.length
@@ -688,7 +686,7 @@ class size:
             self.bit_field.value = len(block.rendered) + self_size
             self.rendered        = self.bit_field.render()
 
-        # otherwise, add this sizer block to the factories callback list.
+        # otherwise, add this sizer block to the requests callback list.
         else:
             if not self.request.callbacks.has_key(self.block_name):
                 self.request.callbacks[self.block_name] = []
