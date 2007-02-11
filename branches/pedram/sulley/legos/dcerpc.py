@@ -34,7 +34,7 @@ class ndr_conformant_array (blocks.block):
         '''
         We overload and extend the render routine in order to properly pad and prefix the string.
 
-        [dword length][array]
+        [dword length][array][pad]
         '''
 
         # let the parent do the initial render.
@@ -72,7 +72,7 @@ class ndr_string (blocks.block):
         '''
         We overload and extend the render routine in order to properly pad and prefix the string.
 
-        [dword length][dword offset][dword passed size][string]
+        [dword length][dword offset][dword passed size][string][pad]
         '''
 
         # let the parent do the initial render.
@@ -119,7 +119,7 @@ class ndr_wstring (blocks.block):
         '''
         We overload and extend the render routine in order to properly pad and prefix the string.
 
-        [dword length][dword offset][dword passed size][string]
+        [dword length][dword offset][dword passed size][string][pad]
         '''
 
         # let the parent do the initial render.

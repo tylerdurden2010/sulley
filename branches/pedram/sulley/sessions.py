@@ -496,6 +496,7 @@ class session (pgraph.graph):
 
         # serialize session state to disk whenever the user pauses.
         if self.pause_flag:
+            self.log("serializing session state to disk", 2)
             self.export_file()
 
         while 1:
@@ -585,7 +586,7 @@ class session (pgraph.graph):
             self.log("restarting target virtual machine")
             target.vmcontrol.restart_target()
 
-        # otherwise if we have a connected process monitor, restart the target process.
+        # if we have a connected process monitor, restart the target process.
         elif target.procmon:
             self.log("restarting target process")
             if stop_first:
@@ -595,6 +596,11 @@ class session (pgraph.graph):
 
             # give the process a few seconds to settle in.
             time.sleep(3)
+
+        # otherwise all we can do is wait a while for the target to recover on its own.
+        else:
+            self.log("no vmcontrol or procmon channel available ... sleeping for 5 minutes")
+            time.sleep(300)
 
         # pass specified target parameters to the PED-RPC server to re-establish connections.
         target.pedrpc_connect()
