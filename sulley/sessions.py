@@ -104,7 +104,7 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, session_filename=None, **kwargs):
+    def __init__ (self, **kwargs):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
@@ -265,7 +265,7 @@ class session (pgraph.graph):
     ####################################################################################################################
     def export_file (self):
         '''
-        Dump the entire object structure to disk.
+        Dump various object values to disk.
 
         @see: import_file()
         '''
@@ -273,16 +273,24 @@ class session (pgraph.graph):
         if not self.session_filename:
             return
 
-        # trim out attributes that can't be serialized.
-        targets      = self.targets
-        self.targets = None
+        data = {}
+        data["session_filename"]    = self.session_filename
+        data["skip"]                = self.total_mutant_index
+        data["sleep_time"]          = self.sleep_time
+        data["log_level"]           = self.log_level
+        data["proto"]               = self.proto
+        data["restart_interval"]    = self.restart_interval
+        data["timeout"]             = self.timeout
+        data["web_port"]            = self.web_port
+        data["total_num_mutations"] = self.total_num_mutations
+        data["total_mutant_index"]  = self.total_mutant_index
+        data["netmon_results"]      = self.netmon_results
+        data["procmon_results"]     = self.procmon_results
+        data["pause_flag"]          = self.pause_flag
 
         fh = open(self.session_filename, "wb+")
-        fh.write(zlib.compress(cPickle.dumps(self, protocol=2)))
+        fh.write(zlib.compress(cPickle.dumps(data, protocol=2)))
         fh.close()
-
-        # restored trimmed attributes.
-        self.targets = targets
 
 
     ####################################################################################################################
@@ -400,6 +408,9 @@ class session (pgraph.graph):
                     # poll the PED-RPC endpoints (netmon, procmon etc...) for the target.
                     self.poll_pedrpc(target)
 
+                    # serialize the current session state to disk.
+                    self.export_file()
+
             # recursively fuzz the remainder of the nodes in the session graph.
             self.fuzz(self.fuzz_node, path)
 
@@ -411,7 +422,7 @@ class session (pgraph.graph):
     ####################################################################################################################
     def import_file (self):
         '''
-        Load the entire object structure from disk.
+        Load varous object values from disk.
 
         @see: export_file()
         '''
@@ -424,20 +435,20 @@ class session (pgraph.graph):
             return
 
         # update the skip variable to pick up fuzzing from last test case.
-        self.skip                = data.total_mutant_index
+        self.skip                = data["total_mutant_index"]
 
-        self.session_filename    = data.session_filename
-        self.sleep_time          = data.sleep_time
-        self.log_level           = data.log_level
-        self.proto               = data.proto
-        self.timeout             = data.timeout
-        self.web_port            = data.web_port
-        self.total_num_mutations = data.total_num_mutations
-        self.total_mutant_index  = data.total_mutant_index
-        self.fuzz_node           = data.fuzz_node
-        self.netmon_results      = data.netmon_results
-        self.procmon_results     = data.procmon_results
-        self.pause_flag          = data.pause_flag
+        self.session_filename    = data["session_filename"]
+        self.sleep_time          = data["sleep_time"]
+        self.log_level           = data["log_level"]
+        self.proto               = data["proto"]
+        self.restart_interval    = data["restart_interval"]
+        self.timeout             = data["timeout"]
+        self.web_port            = data["web_port"]
+        self.total_num_mutations = data["total_num_mutations"]
+        self.total_mutant_index  = data["total_mutant_index"]
+        self.netmon_results      = data["netmon_results"]
+        self.procmon_results     = data["procmon_results"]
+        self.pause_flag          = data["pause_flag"]
 
 
     ####################################################################################################################
@@ -493,11 +504,6 @@ class session (pgraph.graph):
         '''
         If thet pause flag is raised, enter an endless loop until it is lowered.
         '''
-
-        # serialize session state to disk whenever the user pauses.
-        if self.pause_flag:
-            self.log("serializing session state to disk", 2)
-            self.export_file()
 
         while 1:
             if self.pause_flag:
