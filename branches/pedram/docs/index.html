@@ -1,0 +1,83 @@
+<html>
+<head>
+    <link rel="stylesheet" href="stylesheet.css">
+</head>
+<body bgcolor="#eeeeee">
+<center>
+<table border=0 cellpadding=10 cellspacing=0 width="75%" height="100%"><tr><td bgcolor="#ffffff" valign="top">
+<h1>Sulley - Fuzzing Framework</h1>
+<img src="img/sulley.jpg" align=right border=0>
+
+<h2>Table of Contents</h2>
+<ol>
+    <li><a href="index.html">Overview</a></li>
+    <ul>
+        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#author">Author</a></li>
+    </ul>
+    <li><a href="#installation">Installation and Requirements</a></li>
+    <li><a href="#representation">Data Representation</a></li>
+    <li><a href="#session">Session</a></li>
+    <li><a href="#upcoming">Upcoming Features</a></li>
+</ol>
+
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a name="introduction"></a><h2>Introduction</h2>
+Sulley is a fuzzer development and fuzz testing framework consisting of multiple extensible components. Sulley (IMHO) exceeds the capabilities of most previously published fuzzing technologies, commercial and public domain. The goal of the framework is to simplify not only data representation but to simplify data transmission and monitoring as well. Sulley is named after the creature from <a href="http://www.imdb.com/title/tt0198781/">Monsters Inc.</a>, because, well, he is fuzzy. Overall usage of Sulley breaks down to the following::
+<ul>
+    <li> <b>Data Representation</b>: First step in using any fuzzer. Run your target and tickle some interfaces while snagging the packets. Break down the protocol into indvidual requests and represent in Sulley.
+    <li> <b>Session</b>: Link your developed requests together to form a session, attach the various available Sulley monitoring agents (socket, debugger, etc...) and commence fuzzing.
+    <li> <b>Post Mortem</b>: Review the generated data and monitored results. Replay individual test cases.
+</ul>
+
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a name="author"></a><h2>Author</h2>
+Pedram Amini<br>
+pedram [dot] amini [at] gmail [dot] com<br>
+<a href="http://pedram.openrce.org">http://pedram.openrce.org</a><br><br>
+Sulley is additionally maintained and built upon by members of TippingPoint Security Research Team.
+
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a name="installation"></a><h2>Installation and Requirements</h2>
+For simple data representation and transmission there are no requirements. However, the various monitoring components do have further needs:
+<ul>
+    <li> <b>network_monitor.py</b>: <a href="http://oss.coresecurity.com/projects/pcapy.html">CORE Pcapy</a>, <a href="http://oss.coresecurity.com/projects/impacket.html">CORE Impacket</a>
+    <li> <b>process_monitor.py</b>: <a href="http://www.openrce.org/downloads/details/208/PaiMei">PaiMei</a>
+    <li> <b>vmcontrol.py</b>: <a href="http://www.vmware.com/">VMWare</a>
+</ul>
+
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a name="representation"></a><h2>Data Representation</h2>
+
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a href="Sulley/index.html">Sulley API Docs</a>
+
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a name="session"></a><h2>Session</h2>
+
+<center><img src="img/crash_paths.gif" border=0></center>
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a name="upcoming"></a><h2>Upcoming Features</h2>
+<h3>Feedback Loop</h3>
+A new monitoring agent is in works that will monitor individual instruction execution in search of comparisons to constant values. These "hints" will get passed back to the fuzz session for inclusion in data generation and hopes of improved code coverage.
+
+<h3>Parallel Fuzzing</h3>
+The current "architecture" is designed to allow for the addition of multiple targets each with its own configuration of monitoring agents. The completion of parallel fuzzing will disperse the total fuzz set workload across all available target to drastically improve performance.
+
+<h3>Honing</h3>
+A common problem that arrises with fuzzing is that replaying a test case previously deemed to generate a fault does not reproduce the issue. The likely reasoning behind this is that some sequence of previously transmitted test cases put the target in a vulnerable state. The honing tool will apply a sliding / splitting window algorithm to determine the exact sequence of events necessary to reproduce a given issue.
+
+<h3>PCAP Binning</h3>
+Similar to the crash binning functionality which handles automatic categorization of fault addresses and paths, the PCAP binning tool will automatically category observed responses to fuzz data.
+
+</td></tr></table>
+</center>
+</body>
+</html>
