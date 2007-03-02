@@ -72,13 +72,14 @@ class debugger_thread (threading.Thread):
         self.process_monitor.last_synopsis = self.process_monitor.crash_bin.crash_synopsis()
         first_line                         = self.process_monitor.last_synopsis.split("\n")[0]
 
-        self.process_monitor.log("debugger thread-%s caught access violaton: '%s'" % (self.getName(), first_line))
+        self.process_monitor.log("debugger thread-%s caught access violation: '%s'" % (self.getName(), first_line))
 
         # this instance of pydbg should no longer be accessed, i want to know if it is.
         self.process_monitor.crash_bin.pydbg = None
 
         # kill the process.
         dbg.terminate_process()
+        return DBG_CONTINUE
 
 
     def dbg_callback_user (self, dbg):

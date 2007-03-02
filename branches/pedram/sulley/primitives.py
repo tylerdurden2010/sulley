@@ -343,17 +343,17 @@ class string (base_primitive):
         Primitive that cycles through a library of "bad" strings.
 
         @type  value:    String
-        @param value:    Default string value
+        @kwarg value:    Default string value
         @type  size:     Integer
-        @param size:     (Optional, def=-1) Static size of this field, leave -1 for dynamic.
+        @kwarg size:     (Optional, def=-1) Static size of this field, leave -1 for dynamic.
         @type  padding:  Character
-        @param padding:  (Optional, def="\x00") Value to use as padding to fill static field size.
+        @kwarg padding:  (Optional, def="\x00") Value to use as padding to fill static field size.
         @type  encoding: String
-        @param encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
+        @kwarg encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
         @type  fuzzable: Boolean
-        @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
+        @kwarg fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
         @type  name:     String
-        @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
+        @kwarg name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
 
         self.value         = self.original_value = value
@@ -508,17 +508,17 @@ class bit_field (base_primitive):
         @type  width:      Integer
         @param width:      Width of bit fields
         @type  endian:     Character
-        @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+        @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
         @type  format:     String
-        @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
+        @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
         @type  signed:     Boolean
-        @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+        @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
         @type  full_range: Boolean
-        @param full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
+        @kwarg full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
         @type  fuzzable:   Boolean
-        @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+        @kwarg fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
         @type  name:       String
-        @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+        @kwarg name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
 
         assert(type(value) is int or long)

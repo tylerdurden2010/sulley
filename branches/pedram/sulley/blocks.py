@@ -611,19 +611,19 @@ class size:
         @type  request:    s_request
         @param request:    Request this block belongs to
         @type  length:     Integer
-        @param length:     (Optional, def=4) Length of sizer
+        @kwarg length:     (Optional, def=4) Length of sizer
         @type  endian:     Character
-        @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+        @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
         @type  format:     String
-        @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
+        @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
         @type  inclusive:  Boolean
-        @param inclusive:  (Optional, def=False) Should the sizer count its own length?
+        @kwarg inclusive:  (Optional, def=False) Should the sizer count its own length?
         @type  signed:     Boolean
-        @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+        @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
         @type  fuzzable:   Boolean
-        @param fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
+        @kwarg fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
         @type  name:       String
-        @param name:       Name of this sizer field
+        @kwarg name:       Name of this sizer field
         '''
 
         self.block_name    = block_name

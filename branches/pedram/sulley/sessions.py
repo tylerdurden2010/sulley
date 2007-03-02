@@ -109,19 +109,19 @@ class session (pgraph.graph):
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
         @type  session_filename: String
-        @param session_filename: (Optional, def=None) Filename to serialize persistant data to
+        @kwarg session_filename: (Optional, def=None) Filename to serialize persistant data to
         @type  skip:             Integer
-        @param skip:             (Optional, def=0) Number of test cases to skip
+        @kwarg skip:             (Optional, def=0) Number of test cases to skip
         @type  sleep_time:       Float
-        @param sleep_time:       (Optional, def=1.0) Time to sleep in between tests
+        @kwarg sleep_time:       (Optional, def=1.0) Time to sleep in between tests
         @type  log_level:        Integer
-        @param log_level:        (Optional, def=2) Set the log level, higher number == more log messages
+        @kwarg log_level:        (Optional, def=2) Set the log level, higher number == more log messages
         @type  proto:            String
-        @param proto:            (Optional, def="tcp") Communication protocol
+        @kwarg proto:            (Optional, def="tcp") Communication protocol
         @type  timeout:          Float
-        @param timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
+        @kwarg timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
         @type  restart_interval: Integer
-        @param restart_interval  (Optional, def=0) Restart the target after n test cases, disable by setting to 0
+        @kwarg restart_interval  (Optional, def=0) Restart the target after n test cases, disable by setting to 0
         '''
 
         # run the parent classes initialization routine first.
