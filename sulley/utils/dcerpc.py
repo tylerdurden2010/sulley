@@ -1,6 +1,6 @@
 import math
 import struct
-
+import misc
 
 ########################################################################################################################
 def bind (uuid, version):
@@ -28,7 +28,7 @@ def bind (uuid, version):
     bind += "\x00\x00"                      # context id (0)
     bind += "\x01"                          # number of trans items (1)
     bind += "\x00"                          # padding
-    bind += uuid_str_to_bin(uuid)           # abstract syntax
+    bind += misc.uuid_str_to_bin(uuid)      # abstract syntax
     bind += major                           # interface version
     bind += minor                           # interface version minor
 

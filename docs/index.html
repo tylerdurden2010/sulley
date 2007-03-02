@@ -18,13 +18,14 @@
     <li><a href="#installation">Installation and Requirements</a></li>
     <li><a href="#representation">Data Representation</a></li>
     <li><a href="#session">Session</a></li>
+    <li><a href="#post_mortem">Post Mortem</a></li>
     <li><a href="#upcoming">Upcoming Features</a></li>
 </ol>
 
 
 <!--------------------------------------------------------------------------------------------------------------------->
 <a name="introduction"></a><h2>Introduction</h2>
-Sulley is a fuzzer development and fuzz testing framework consisting of multiple extensible components. Sulley (IMHO) exceeds the capabilities of most previously published fuzzing technologies, commercial and public domain. The goal of the framework is to simplify not only data representation but to simplify data transmission and monitoring as well. Sulley is named after the creature from <a href="http://www.imdb.com/title/tt0198781/">Monsters Inc.</a>, because, well, he is fuzzy. Overall usage of Sulley breaks down to the following::
+Sulley is a fuzzer development and fuzz testing framework consisting of multiple extensible components. Sulley (IMHO) exceeds the capabilities of most previously published fuzzing technologies, commercial and public domain. The goal of the framework is to simplify not only data representation but to simplify data transmission and target monitoring as well. Sulley is named after the creature from <a href="http://www.imdb.com/title/tt0198781/">Monsters Inc.</a>, because, well, he is fuzzy. Overall usage of Sulley breaks down to the following:
 <ul>
     <li> <b>Data Representation</b>: First step in using any fuzzer. Run your target and tickle some interfaces while snagging the packets. Break down the protocol into indvidual requests and represent in Sulley.
     <li> <b>Session</b>: Link your developed requests together to form a session, attach the various available Sulley monitoring agents (socket, debugger, etc...) and commence fuzzing.
@@ -35,9 +36,8 @@ Sulley is a fuzzer development and fuzz testing framework consisting of multiple
 <!--------------------------------------------------------------------------------------------------------------------->
 <a name="author"></a><h2>Author</h2>
 Pedram Amini<br>
-pedram [dot] amini [at] gmail [dot] com<br>
 <a href="http://pedram.openrce.org">http://pedram.openrce.org</a><br><br>
-Sulley is additionally maintained and built upon by members of TippingPoint Security Research Team.
+Sulley is additionally maintained and built upon by members of <a href="http://dvlabs.tippingpoint.com">TippingPoint Security Research Team</a>.
 
 
 <!--------------------------------------------------------------------------------------------------------------------->
@@ -52,14 +52,33 @@ For simple data representation and transmission there are no requirements. Howev
 
 <!--------------------------------------------------------------------------------------------------------------------->
 <a name="representation"></a><h2>Data Representation</h2>
+Aitel had it right with <a href="http://www.immunityinc.com/resources-freesoftware.shtml">SPIKE</a>, I've taken a good look at every fuzzer I can get my hands on and the block based approach to protocol representation stands above the others combining both simplicity and the flexibility to represent most protocols. Sulley utilizes a block based approach to generate individual "requests". Be sure to also refer. To begin, initialize with a new name for your request:
+<pre class="code">
+s_initialize("new request")
+</pre>
+Now you start adding primitives, blocks with primitives and nested blocks with primitives to the request. We'll begin with the simplest one, s_static(), which adds a static unmutating value of arbitrary length to the request. There are various aliases sprinkled throughout Sulley for your convenience, s_dunno() and s_raw() are aliases of s_static():
+<pre class="code">
+# these are all equivalent:
+s_static("pedram\x00was\x01here\x02")
+s_raw("pedram\x00was\x01here\x02")
+s_dunno("pedram\x00was\x01here\x02")
+</pre>
+Related to the above, but not equivalent, is the s_binary() primitive which accepts binary data represented in multiple formats. SPIKE users will recognize this API, its functionality is (should be) equivalent to what you are familiar with:
+<pre class="code">
+    # yeah, it can handle all these formats.
+    s_binary("0xde 0xad be ef \xca fe 00 01 02 0xba0xd0 f00 0d")
+</pre>
 
-
-<!--------------------------------------------------------------------------------------------------------------------->
-<a href="Sulley/index.html">Sulley API Docs</a>
-
+<h3>Further Reference</h3>
+<ul>
+    <li><a href="Sulley/index.html">Sulley API Docs</a>
+</ul>
 
 <!--------------------------------------------------------------------------------------------------------------------->
 <a name="session"></a><h2>Session</h2>
+
+<!--------------------------------------------------------------------------------------------------------------------->
+<a name="post_mortem"></a><h2>Post Mortem</h2>
 
 <center><img src="img/crash_paths.gif" border=0></center>
 

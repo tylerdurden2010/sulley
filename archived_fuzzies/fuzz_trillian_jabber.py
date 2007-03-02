@@ -26,7 +26,7 @@ def init_message (sock):
     sock.send(init)
     sock.recv(1024)
 
-sess                   = sessions.session("audits/trillian.session")
+sess                   = sessions.session(session_filename="audits/trillian.session")
 target                 = sessions.target("152.67.137.126", 5298)
 target.netmon          = pedrpc.client("152.67.137.126", 26001)
 target.procmon         = pedrpc.client("152.67.137.126", 26002)
