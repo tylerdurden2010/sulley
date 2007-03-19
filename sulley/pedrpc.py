@@ -292,8 +292,9 @@ class server:
                 exec("method_pointer = self.%s" % method_name)
                 ret = method_pointer(*args, **kwargs)
             except:
-                # if the method can't be found. return None.
-                ret = None
+                # if the method can't be found notify the user and raise an error
+                sys.stderr.write("PED-RPC> remote method %s cannot be found\n" % method_name)
+                raise AttributeError
 
             # transmit the return value to the client, continue on socket disconnect.
             try:
