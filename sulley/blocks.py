@@ -157,7 +157,7 @@ class block:
         @type  dep_values:  List of Mixed Types
         @param dep_values:  (Optional, def=[]) Values that field "dep" may contain for block to be rendered
         @type  dep_compare: String
-        @param dep_compare: (Optional, def="==") Comparison method to use on dependency (==, !=, >, >=, <, <=)
+        @param dep_compare: (Optional, def="==") Comparison method to apply to dependency (==, !=, >, >=, <, <=)
         '''
 
         self.name          = name
@@ -496,9 +496,9 @@ class repeat:
         @type  request:    s_request
         @param request:    Request this block belongs to
         @type  min_reps:   Integer
-        @param min_reps:   Minimum length of random block
+        @param min_reps:   Minimum number of block repetitions
         @type  max_reps:   Integer
-        @param max_reps:   Maximum length of random block
+        @param max_reps:   Maximum number of block repetitions
         @type  step:       Integer
         @param step:       (Optional, def=1) Step count between min and max reps
         @type  fuzzable:   Boolean

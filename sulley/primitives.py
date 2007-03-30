@@ -347,7 +347,7 @@ class string (base_primitive):
         @type  size:     Integer
         @kwarg size:     (Optional, def=-1) Static size of this field, leave -1 for dynamic.
         @type  padding:  Character
-        @kwarg padding:  (Optional, def="\x00") Value to use as padding to fill static field size.
+        @kwarg padding:  (Optional, def="\\x00") Value to use as padding to fill static field size.
         @type  encoding: String
         @kwarg encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
         @type  fuzzable: Boolean
@@ -553,6 +553,9 @@ class bit_field (base_primitive):
             self.add_integer_boundaries(self.max_num / 2)
             self.add_integer_boundaries(self.max_num / 3)
             self.add_integer_boundaries(self.max_num / 4)
+            self.add_integer_boundaries(self.max_num / 8)
+            self.add_integer_boundaries(self.max_num / 16)
+            self.add_integer_boundaries(self.max_num / 32)
             self.add_integer_boundaries(self.max_num)
 
 
