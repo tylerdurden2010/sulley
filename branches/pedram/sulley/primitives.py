@@ -673,7 +673,7 @@ class bit_field (base_primitive):
 class byte (bit_field):
     def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
-            value = struct.unpack(endian + "B", value)[0]
+            value       = struct.unpack(kwargs.get("endian", "<") + "B", value)[0]
 
         bit_field.__init__(self, value, 8, **kwargs)
 
@@ -682,7 +682,7 @@ class byte (bit_field):
 class word (bit_field):
     def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
-            value = struct.unpack(endian + "H", value)[0]
+            value = struct.unpack(kwargs.get("endian", "<") + "H", value)[0]
 
         bit_field.__init__(self, value, 16, **kwargs)
 
@@ -691,7 +691,7 @@ class word (bit_field):
 class dword (bit_field):
     def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
-            value = struct.unpack(endian + "L", value)[0]
+            value = struct.unpack(kwargs.get("endian", "<") + "L", value)[0]
 
         bit_field.__init__(self, value, 32, **kwargs)
 
@@ -700,6 +700,6 @@ class dword (bit_field):
 class qword (bit_field):
     def __init__ (self, value, **kwargs):
         if type(value) not in [int, long]:
-            value = struct.unpack(endian + "Q", value)[0]
+            value = struct.unpack(kwargs.get("endian", "<") + "Q", value)[0]
 
         bit_field.__init__(self, value, 64, **kwargs)

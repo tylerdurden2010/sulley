@@ -367,7 +367,7 @@ def s_static (value, name=None):
     '''
     Push a static value onto the current block stack.
 
-    @see: Aliases: s_dunno(), s_raw()
+    @see: Aliases: s_dunno(), s_raw(), s_unknown()
 
     @type  value: Raw
     @param value: Raw static data
@@ -537,7 +537,7 @@ def s_qword (value, **kwargs):
 ### ALIASES
 ########################################################################################################################
 
-s_dunno    = s_raw    = s_static
+s_dunno    = s_raw    = s_unknown   = s_static
 s_sizer    = s_size
 s_bit      = s_bits   = s_bit_field
 s_char     = s_byte

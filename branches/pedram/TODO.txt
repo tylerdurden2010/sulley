@@ -15,6 +15,7 @@ general
     - add SPIKE aliases and test if it's actually SPIKE compatible.
     - write a PDML -> sulley parser
     - change all class/function definitions to utilize "kwargs.get()"
+    - replace XDR legos with wrapper around xdrlib (built into python)
 
 blocks/primitives
     - implement fixed length padded strings
@@ -45,6 +46,8 @@ sessions
     - implement "honing", subsets of mutation ranges to locate the actual source of the crash
         - this will likely have to be written as a new tool
     - extend class to allow distributed fuzzing (complete parallel fuzzing)
+    - fuzz() should be generic. all socket operations moved into .connect(), .transmit() . recv() that way session ca
+      be overloaded to do other transports such as mailslots, named pipes, etc..
 
 legos
     - ip address (with limited entries from string / delim fuzz libraries) values.
