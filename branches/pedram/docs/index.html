@@ -28,9 +28,9 @@
 <a name="introduction"></a><h2>Introduction</h2>
 Sulley is a fuzzer development and fuzz testing framework consisting of multiple extensible components. Sulley (IMHO) exceeds the capabilities of most previously published fuzzing technologies, commercial and public domain. The goal of the framework is to simplify not only data representation but to simplify data transmission and target monitoring as well. Sulley is named after the creature from <a href="http://www.imdb.com/title/tt0198781/">Monsters Inc.</a>, because, well, he is fuzzy.
 <br><br>
-Modern day fuzzers are, for the most part, solely focused on data generation. Sulley does this better and more. Sulley watches the network and methodically maintains records. Sulley instruments and monitors the health of the target, capable of reverting to a good state using multiple methods. Sulley detects, tracks and categorizes detected faults. Sulley can fuzz in parallel, significantly increasing test speed. Sulley can automatically determine what unique sequence of test cases trigger faults. Sulley does all this, and more, automatically and without attendance. Overall usage of Sulley breaks down to the following:
+Modern day fuzzers are, for the most part, solely focus on data generation. Sulley not only has impressive data generation but has taken this a step further and includes many other important aspects a morndern fuzzer should provide. Sulley watches the network and methodically maintains records. Sulley instruments and monitors the health of the target, capable of reverting to a good state using multiple methods. Sulley detects, tracks and categorizes detected faults. Sulley can fuzz in parallel, significantly increasing test speed. Sulley can automatically determine what unique sequence of test cases trigger faults. Sulley does all this, and more, automatically and without attendance. Overall usage of Sulley breaks down to the following:
 <ul>
-    <li> <b>Data Representation</b>: First step in using any fuzzer. Run your target and tickle some interfaces while snagging the packets. Break down the protocol into indvidual <b><i>requests</i></b> and represent in Sulley.
+    <li> <b>Data Representation</b>: First step in using any fuzzer. Run your target and tickle some interfaces while snagging the packets. Break down the protocol into indvidual <b><i>requests</i></b> and represent that as blocks in Sulley.
     <li> <b>Session</b>: Link your developed requests together to form a <b><i>session</i></b>, attach the various available Sulley monitoring <b><i>agents</i></b> (socket, debugger, etc...) and commence fuzzing.
     <li> <b>Post Mortem</b>: Review the generated data and monitored results. Replay individual test cases.
 </ul>
@@ -57,7 +57,7 @@ There is some rhyme and reason to the Sulley directory structure. Maintaining th
                     <li> <i>ber.py</i>: ASN.1 / BER primitives.
                     <li> <i>dcerpc.py</i>: Microsoft RPC NDR primitives.
                     <li> <i>misc.py</i>: Various uncategorized complex primitives such as e-mail addresses and hostnames.
-                    <li> <i>xdr.py</i>: XDR types
+                    <li> <i>xdr.py</i>: XDR types YYY - xdrlib?
                 </ul>
             <li> <b>pgraph</b>: Python graph abstraction library. Utilized in building sessions.
             <li> <b>utils</b>: Various helper routines.
@@ -94,7 +94,7 @@ Pedram Amini<br>
 Cody Pierce<br>
 <a href="http://cody.openrce.org">http://cody.openrce.org</a>
 <br><br>
-Sulley is additionally maintained and built upon by members of <a href="http://dvlabs.tippingpoint.com">TippingPoint Security Research Team</a>.
+Sulley is additionally maintained and built upon by members of the <a href="http://dvlabs.tippingpoint.com">TippingPoint Security Research Team</a>.
 
 
 <!--------------------------------------------------------------------------------------------------------------------->
@@ -116,6 +116,7 @@ s_initialize("new request")
 Now you start adding primitives, blocks and nested blocks to the request. Each primitive can be individually <i>rendered</i> and <i>mutated</i>. Rendering a primitive returns its contents in raw data format. Mutating a primitive transforms its internal contents. The concepts of rendering and mutating are abstracted from fuzzer developers for the most part, so don't worry about it. Know however that each mutatable primitive accepts a default value which is restored when the fuzzable values are exhausted.
 
 <h3>Static and Random Primitives</h3>
+YYY - Can we make dunno unknown?<br><br>
 Let's begin with the simplest primitive, s_static(), which adds a static unmutating value of arbitrary length to the request. There are various aliases sprinkled throughout Sulley for your convenience, s_dunno() and s_raw() are aliases of s_static():
 <pre class="code">
 # these are all equivalent:
@@ -123,12 +124,12 @@ s_static("pedram\x00was\x01here\x02")
 s_raw("pedram\x00was\x01here\x02")
 s_dunno("pedram\x00was\x01here\x02")
 </pre>
-Primitives, blocks etc. all take an optional <i>name</i> keyword argument. Specifying a name allows you access the named item directly from the request via <i>request.names["name"]</i> instead of having to walk the block structure to reach the desired element.
+Primitives, blocks etc. all take an optional <i>name</i> keyword argument. Specifying a name allows you to access the named item directly from the request via <i>request.names["name"]</i> instead of having to walk the block structure to reach the desired element.
 <br><br>
 Related to the above, but not equivalent, is the s_binary() primitive which accepts binary data represented in multiple formats. SPIKE users will recognize this API, its functionality is (or rather should be) equivalent to what you are already familiar with:
 <pre class="code">
     # yeah, it can handle all these formats.
-    s_binary("0xde 0xad be ef \xca fe 00 01 02 0xba0xdd f0 0d")
+    s_binary("0xde 0xad be ef \xca fe 00 01 02 0xba0xdd f0 0d", name="complex")
 </pre>
 Most of Sulley's primitives are driven by "fuzz heuristics" and therefore have a limited number of mutations. An exception to this is the s_random() primitive which can be utilized to generate random data of varying lengths. This primitive takes two mandatory arguments, 'min_length' and 'max_length', specifying the minimum and maximum length of random data to generate on each iteration respectively. This primitive also accepts the following optional keyword arguments:
 <ul>
@@ -139,25 +140,28 @@ Most of Sulley's primitives are driven by "fuzz heuristics" and therefore have a
 The 'num_mutations' keyword argument specifies how many times this primitive should be re-rendered before it is considered exhausted. To fill a static sized field with random data, set the values for 'min_length' and 'max_length' to be the same.
 
 <h3>Integers</h3>
-Binary and ASCII protocols alike have various sized integers sprinkled all throughout them, the Content-Length field in HTTP for example. Like most fuzzing frameworks, a portion of Sulley is dedicated to representing these types:
+Binary and ASCII protocols alike have various sized integers sprinkled all throughout them, for instance the Content-Length field in HTTP. Like most fuzzing frameworks, a portion of Sulley is dedicated to representing these types:
 <ul>
     <li> 1 byte: s_byte(), s_char()
-    <li> 2 bytes: s_word(), s_short()
+    <li> 2 bytes: s_word(), s_short(), YYY - s_wchar()?
     <li> 4 bytes: s_dword(), s_long(), s_int()
     <li> 8 bytes: s_qword(), s_double()
 </ul>
-The integer types each except at least a single parameter, the default integer value. Additionally the following optional keyword arguments may be specified:
+The integer types each accept at least a single parameter, the default integer value. Additionally the following optional keyword arguments may be specified:
 <ul>
     <li> <b>endian</b>: <i>(character, default='&lt;')</i> Endianess of the bit field. Specify '&lt;' for little endian and '&gt;' for big endian.
-    <li> <b>format</b>: <i>(string, default="binary")</i> Output format, "binary" or "ascii", controls the format which the integer primitives renders in.
+    <li> <b>format</b>: <i>(string, default="binary")</i> Output format, "binary" or "ascii", controls the format which the integer primitives renders in. YYY - shouldnt default be ascii?
     <li> <b>signed</b>: <i>(boolean, default=False)</i> Make size signed vs. unsigned, applicable only when format="ascii".
     <li> <b>full_range</b>: <i>(boolean, default=False)</i> If enabled then this primitive mutates through all possible values. More on this later.
     <li> <b>fuzzable</b>: <i>(boolean, default=True)</i> Enable or disable fuzzing of this primitive.
     <li> <b>name</b>: <i>(string, default=None)</i> As with all Sulley objects specifying a name gives you direct access to this primitive throughout the request.
 </ul>
-The <i>full_range</i> modifier is of particular interest from above. Consider you want to fuzz a DWORD value, that's 4,294,967,295 total possible values. At a rate of 10 test cases per second, it would 13 years to finish fuzzing this single primitive! To reduce this vast input space Sulley defaults to trying only "smart" values. This includes the plus and minus 10 border cases around 0, the maximum integer value (MAX_VAL), MAX_VAL divided by 2, MAX_VAL divided by 3, MAX_VAL divided by 4, MAX_VAL divided by 8, MAX_VAL divided by 16 and MAX_VAL divided by 32. Exhausting this reduced input space of 141 test cases requires only seconds.
+The <i>full_range</i> modifier is of particular interest from above. Consider you want to fuzz a DWORD value, that's 4,294,967,295 total possible values. At a rate of 10 test cases per second, it would take 13 years to finish fuzzing this single primitive! To reduce this vast input space Sulley defaults to trying only "smart" values. This includes the plus and minus 10 border cases around 0, the maximum integer value (MAX_VAL), MAX_VAL divided by 2, MAX_VAL divided by 3, MAX_VAL divided by 4, MAX_VAL divided by 8, MAX_VAL divided by 16 and MAX_VAL divided by 32. Exhausting this reduced input space of 141 test cases requires only seconds.
 
 <h3>Strings and Delimiters</h3>
+YYY - We should add some string legos for these<br><br>
+YYY - Does it makes sense to provide a helper function like s_split("this.is.a.hostname.com", ".") which auto builds the blocks<br><br>
+
 Strings can be found everywhere. E-mail addresses, hostnames, usernames, passwords and more all examples of string components you will no doubt come across when fuzzing. Sulley provides the s_string() primitive for representing these fields. The primitive takes a single mandatory argument specifying the default, valid, value for the primitive. The following additional keyword arguments may be specified:
 <ul>
     <li> <b>size</b>: <i>(integer, default=-1)</i> Static size for this string. For dynamic sizing, leave this as -1.
@@ -167,6 +171,9 @@ Strings can be found everywhere. E-mail addresses, hostnames, usernames, passwor
     <li> <b>name</b>: <i>(string, default=None)</i> As with all Sulley objects specifying a name gives you direct access to this primitive throughout the request.
 </ul>
 Strings are frequently parsed into sub-fields through the usage of delimiters. The space character for example is used as a delimiter in the HTTP request "GET /index.html HTTP/1.0". The front slash (/) and dot (.) characters in that same request are also delimiters. When defining a protocol in Sulley, be sure to represent delimiters using the s_delim() primitive. As with other primitives, the first argument is mandatory and used to specify the default value. Also as with other primitives, s_delim() accepts the optionals 'fuzzable' and 'name' keyword arguments. Delimiter mutations include repetition, substitution and exclusion. As a complete example, consider the following sequence of primitives for fuzzing the HTML body tag.
+
+YYY - is delim == raw?<br><br>
+
 <pre class="code">
 # fuzzes the string: &lt;BODY bgcolor="black"&gt;
 s_delim("&lt;")
@@ -307,7 +314,7 @@ Similar to sizers, the s_checksum() helper takes the block name to calculate the
 The 'algorithm' argument can be one of "crc32", "adler32", "md5" or "sha1". Alternatively, you can specify a function pointer for this parameter to apply a custom checksum algorithm.
 
 <h4>Repeaters</h4>
-The s_repeat() (or s_repeater()) helper is used for replicating a block a variable number of times. This is useful for example when testing for overflows during the parsing of tables with multiple elements. This helper takes three mandatory arguments, the name of the block to be repeated, the minimum number of repetitions and the maximum number of repetitions. A dditionally, the following optional keyword arguments are available:
+The s_repeat() (or s_repeater()) helper is used for replicating a block a variable number of times. This is useful for example when testing for overflows during the parsing of tables with multiple elements. This helper takes three mandatory arguments, the name of the block to be repeated, the minimum number of repetitions and the maximum number of repetitions. Additionally, the following optional keyword arguments are available:
 <ul>
     <li> <b>step</b>: <i>(integer, default=1)</i> Step count between min and max reps.
     <li> <b>fuzzable</b>: <i>(boolean, default=False)</i> Enable or disable fuzzing of this primitive.
@@ -339,7 +346,10 @@ s_repeat("table entry", min_reps=100, max_reps=1000, step=50)
 This Sulley script will fuzz not only table entry parsing but may potentially discover a fault in the processing of overly long tables.
 
 <h3>Legos</h3>
-Sulley utilizes "Legos" for representing user-defined components such as e-mail addresses, hostnames and protocol primitives used in Microsoft RPC, XDR, ASN.1 and others. Strings are represented in ASN.1 / BER as the sequence [0x04][0x84][dword length][string]. When fuzzing an ASN.1 based protocol, including the length and type prefixes in front of every string can become cumbersome. Instead we can define a Lego and reference it:
+YYY - we could use pyasn1 for asn.1/ber data<br><br>
+YYY - we need to elaborate this section<br><br>
+
+Sulley utilizes "Legos" for representing user-defined components such as e-mail addresses, hostnames and protocol primitives used in Microsoft RPC, XDR, ASN.1 and others. In ASN.1 / BER strings are represented as the sequence [0x04][0x84][dword length][string]. When fuzzing an ASN.1 based protocol, including the length and type prefixes in front of every string can become cumbersome. Instead we can define a Lego and reference it:
 <pre class="code">
 s_lego("ber_string", "anonymous")
 </pre>
@@ -369,7 +379,7 @@ For a more detailed reference, see the Epydoc generated <a href="Sulley/index.ht
 
 <!--------------------------------------------------------------------------------------------------------------------->
 <a name="session"></a><h2>Session</h2>
-Once you have defined a number of requests it's time to tie them together in a session. One the major benefits of Sulley over other fuzzing frameworks is its capability of fuzzing "deep" within a protocol. This is accomplished by linking requests together in a graph. In the following example a sequence of requests are tied together and the pgraph library, which the session and request classes extend from, is leveraged to render the graph in uDraw format:
+Once you have defined a number of requests it's time to tie them together in a session. One of the major benefits of Sulley over other fuzzing frameworks is its capability of fuzzing "deep" within a protocol. This is accomplished by linking requests together in a graph. In the following example a sequence of requests are tied together and the pgraph library, which the session and request classes extend from, is leveraged to render the graph in uDraw format:
 <table border=0 cellpadding=0 cellspacing=5><tr>
 <td valign="top"><img src="img/session_test.gif" border=0></td><td width="100%" valign="top">
 <pre class="code">
@@ -501,7 +511,7 @@ $ ./utils/crashbin_explorer.py audits/trillian_jabber.crashbin
     [1] ntdll.dll:7c911639 mov cl,[eax+0x5] from thread 664 caused access violation
             3442,
 </pre>
-None of these listed fault points may stand out as an obviously exploitable issue. We can further drill down into the specific of an individual fault by specifying a test case number with the '-t' command line switch. Let's take a look at test case number 1416:
+None of these listed fault points may stand out as an obviously exploitable issue. We can further drill down into the specifics of an individual fault by specifying a test case number with the '-t' command line switch. Let's take a look at test case number 1416:
 <pre class="code">
 $ ./utils/crashbin_explorer.py audits/trillian_jabber.crashbin -t 1416
     ntdll.dll:7c910f29 mov ecx,[ecx] from thread 664 caused access violation
@@ -558,7 +568,7 @@ This utility will open the specified crashbin file, read in the list of test cas
 
 <!--------------------------------------------------------------------------------------------------------------------->
 <a name="example"></a><h2>A Complete Walkthrough</h2>
-To better understand how everything ties together, from start to finish, we will walk through a complete real world example audit. This example will touch on many intermediate to advanced Sulley concepts and should hopefully solidify your understanding of the framework. The chosen target is Trend Micro Server Protect, specifically a Microsoft DCE/RPC endpoint on TCP port 5168 bound to by the service SpntSvc.exe. The RPC endpoint is exposed from TmRpcSrv.dll with the following Interface Description Language (IDL) stub information:
+To better understand how everything ties together, from start to finish, we will walk through a complete real world example audit. This example will touch on many intermediate to advanced Sulley concepts and should hopefully solidify your understanding of the framework. The chosen target is Trend Micro Server Protect, specifically a Microsoft DCE/RPC endpoint on TCP port 5168 bound to by the service SpntSvc.exe. The RPC endpoint is exposed from TmRpcSrv.dll with the following Interface Definition Language (IDL) stub information:
 <pre class="code">
     // opcode: 0x00, address: 0x65741030
     // uuid: 25288888-bd5b-11d1-9d53-0080c83a5c2c
@@ -591,6 +601,7 @@ def rpc_request_encoder (data):
 </pre>
 <h3>Building the Requests</h3>
 Armed with this information and our encoder we can begin to define our Sulley requests. We create a file 'requests\trend.py' to contain all our Trend related request and helper definitions and begin coding. This is an excellent example of how building a fuzzer request within a language (as opposed to a custom language) is benefitial as we take advantage of some Python looping to automatically generate a seperate request for each valid upper value from 'trend_req_num':
+<br><br>YYY - Gets cut off due to tag
 <pre class="code">
 for op, submax in [(0x1, 22), (0x2, 19), (0x3, 85), (0x5, 25), (0xa, 49), (0x1f, 25)]:
     s_initialize("5168: op-%x" % op)
@@ -613,7 +624,7 @@ for op, submax in [(0x1, 22), (0x2, 19), (0x3, 85), (0x5, 25), (0xa, 49), (0x1f,
         s_static(struct.pack("<L", 0x5000)) # output buffer size
     s_block_end()
 </pre>
-Within each generated request a new block is initialized and passed our previously defined custom encoder. Next, the s_group() primitive is used define a sequence named 'subs' which represents the lower half value of 'trend_req_num' we saw earlier. The upper half word value is next added to the request stream as a static value. We will not be fuzzing the 'trend_req_num' as we have reverse engineered its valid values, had we not, we could enable fuzzing for these fields as well. Next, the NDR size prefix for some_string is added to the request. We could optionally use the Sulley DCE/RPC NDR Lego primitives here, but since the RPC request is so simple we decide to represent the NDR format manually. Next, the 'some_string' value is added to the request. The string value is encapsulated in a block so that it's length can be measured. In this case we use a static sized string of the character 'A' (roughly 20k worth). Normally we would insert an s_string() primitive here, but since we know Trend will crash with any long string we reduce the test set by utilizing a static value. The length of the string is appended to the request again to fullfill the size_is requirement for 'arg_4'. Finally, we specify an arbitrary statis size for the output buffer size and close the blog. Our requests are now ready and we can move on to creating a session.
+Within each generated request a new block is initialized and passed our previously defined custom encoder. Next, the s_group() primitive is used to define a sequence named 'subs' which represents the lower half value of 'trend_req_num' we saw earlier. The upper half word value is next added to the request stream as a static value. We will not be fuzzing the 'trend_req_num' as we have reverse engineered its valid values, had we not, we could enable fuzzing for these fields as well. Next, the NDR size prefix for 'some_string' is added to the request. We could optionally use the Sulley DCE/RPC NDR Lego primitives here, but since the RPC request is so simple we decide to represent the NDR format manually. Next, the 'some_string' value is added to the request. The string value is encapsulated in a block so that it's length can be measured. In this case we use a static sized string of the character 'A' (roughly 20k worth). Normally we would insert an s_string() primitive here, but since we know Trend will crash with any long string we reduce the test set by utilizing a static value. The length of the string is appended to the request again to fullfill the size_is requirement for 'arg_4'. Finally, we specify an arbitrary static size for the output buffer size and close the block. Our requests are now ready and we can move on to creating a session.
 <h3>Creating the Session</h3>
 We create a new file in the top level Sulley folder named 'fuzz_trend_server_protect_5168.py' for our session. This file has since been moved to the 'archived_fuzzies' folder since it has completed its life. First thing's first, we import Sulley and the created Trend requests from the request library:
 <pre class="code">
