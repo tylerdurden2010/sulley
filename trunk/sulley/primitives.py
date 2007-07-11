@@ -378,6 +378,11 @@ class string (base_primitive):
             self.value * 2,
             self.value * 10,
             self.value * 100,
+            
+            # UTF-8
+            self.value * 2 + "\xfe",
+            self.value * 10 + "\xfe",
+            self.value * 100 + "\xfe",
 
             # strings ripped from spike (and some others I added)
             "/.:/"  + "A"*5000 + "\x00\x00",
