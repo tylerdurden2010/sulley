@@ -656,7 +656,7 @@ class session (pgraph.graph):
         # if data length is > 65507 and proto is UDP, truncate it
         if self.proto == socket.SOCK_DGRAM:
             if len(data) > 65507: # max UDP packet size
-                self.log("Too much data, truncating to 65507 bytes")
+                self.log("Too much UDP data, truncating to 65507 bytes")
                 data = data[:65507]
         
         try:
