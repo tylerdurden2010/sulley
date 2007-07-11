@@ -465,6 +465,28 @@ class string (base_primitive):
             s = s[:len(s)/2] + "\x00" + s[len(s)/2:]
             self.fuzz_library.append(s)
 
+        # truncate fuzz library items to user-supplied length and pad, removing duplicates
+        unique_mutants = []
+        if self.size != -1:
+            for mutant in self.fuzz_library:
+                # truncate
+                if len(mutant) > self.size:
+                    mutant = mutant[:self.size]
+                # pad
+                else:
+                    mutant_list = list(mutant)
+                    filler = self.size - len(mutant)
+                    for i in xrange(0, filler):
+                        mutant_list.insert(len(mutant_list), "\x00")
+                    mutant = "".join(mutant_list)
+                
+                # add to unique list   
+                if mutant not in unique_mutants:        
+                    unique_mutants.append(mutant)
+
+            # assign unique list as fuzz library
+            self.fuzz_library = unique_mutants
+
 
     def add_long_strings (self, sequence):
         '''
