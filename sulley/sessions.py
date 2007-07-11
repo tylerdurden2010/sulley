@@ -385,6 +385,7 @@ class session (pgraph.graph):
                             # if we reach this point the send was successful for break out of the while(1).
                             break
                         except:
+                            
                             # close the socket.
                             sock.close()
 
@@ -649,9 +650,21 @@ class session (pgraph.graph):
             edge.callback(self, node, edge, self.last_recv)
 
         self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
-        sock.send(node.render())
-
-        if self.proto == "tcp":
+        
+        data = node.render()
+        
+        # if data length is > 65507 and proto is UDP, truncate it
+        if self.proto == socket.SOCK_DGRAM:
+            if len(data) > 65507: # max UDP packet size
+                self.log("Too much data, truncating to 65507 bytes")
+                data = data[:65507]
+        
+        try:
+            sock.send(data)
+        except Exception, inst:
+            self.log("Socket error: %s" % inst[1])
+            
+        if self.proto == socket.SOCK_STREAM:
             # XXX - might have a need to increase this at some point. (possibly make it a class parameter)
             self.last_recv = sock.recv(10000)
         else:
