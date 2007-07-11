@@ -546,6 +546,24 @@ s_long     = s_int    = s_dword
 s_double   = s_qword
 s_repeater = s_repeat
 
+### SPIKE Aliases
+
+# for lambda stuff below 
+def custom_raise(msg):
+    raise(msg)
+
+s_intelword          = lambda x: s_long(x, endian=LITTLE_ENDIAN)
+s_intelhalfword      = lambda x: s_short(x, endian=LITTLE_ENDIAN)
+s_bigword            = lambda x: s_long(x, endian=BIG_ENDIAN)
+s_string_lf          = lambda x: custom_raise("NotImplementedError: s_string_lf is not currently implemented.")
+s_string_or_env      = lambda x: custom_raise("NotImplementedError: s_string_or_env is not currently implemented.")
+s_string_repeat      = lambda x: custom_raise("NotImplementedError: s_string_repeat is not currently implemented.")
+s_string_variable    = lambda x: custom_raise("NotImplementedError: s_string_variable is not currently implemented.")
+s_string_variables   = lambda x: custom_raise("NotImplementedError: s_string_variables is not currently implemented.")
+s_unistring          = lambda x: s_string(x, encoding="utf_16_le")
+s_unistring_variable = lambda x: custom_raise("NotImplementedError: s_unistring_variable is not currently implemented.")
+s_xdr_string         = lambda x: custom_raise("LegoNotUtilizedError: XDR strings are available in the XDR lego")
+
 ########################################################################################################################
 ### MISC
 ########################################################################################################################
