@@ -180,7 +180,7 @@ class block:
     def mutate (self):
         mutated = False
 
-        # are we dont with this block?
+        # are we done with this block?
         if self.fuzz_complete:
             return False
 
@@ -311,7 +311,7 @@ class block:
                     self.rendered = ""
                     return
 
-                elif self.request.names[self.dep].value != self.dep_value:
+                elif not self.dep_values and self.request.names[self.dep].value != self.dep_value:
                     self.rendered = ""
                     return
 
