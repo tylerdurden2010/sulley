@@ -100,7 +100,11 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
             pipe = os.popen(command)
             out  = pipe.readlines()
-            pipe.close()
+            
+            try:
+                pipe.close()
+            except IOError:
+                self.log("IOError trying to close pipe")
 
             if not out:
                 break
@@ -217,7 +221,7 @@ if __name__ == "__main__":
         if opt in ("-s", "--snapshot"):  snap_name = arg
         if opt in ("-l", "--log_level"): log_level = int(arg)
 
-    if not vmx:
+    if not vmx or os.access(vmx, os.F_OK) == False:
         ERR(USAGE)
 
     servlet = vmcontrol_pedrpc_server("0.0.0.0", PORT, vmrun, vmx, snap_name, log_level)
