@@ -2,6 +2,7 @@ from sulley import *
 
 def run ():
     signed_tests()
+    string_tests()
 
     # clear out the requests.
     blocks.REQUESTS = {}
@@ -49,3 +50,21 @@ def signed_tests ():
     assert(req.names["qword_2"].render() == "9223372036854775807")
     assert(req.names["qword_3"].render() == "-9223372036854775808")
     assert(req.names["qword_4"].render() == "-1")
+    
+    
+########################################################################################################################
+def string_tests ():
+
+    s_initialize("STRING UNIT TEST 1")
+    s_string("foo", size=200, name="string_1")
+
+    req = s_get("STRING UNIT TEST 1")
+
+    assert(len(req.names["string_1"].render()) == 3)
+
+    # check that string padding and truncation are working correctly
+    for i in xrange(0, 50):
+        s_mutate()
+        assert(len(req.names["string_1"].render()) == 200)
+        
+  
