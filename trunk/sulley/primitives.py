@@ -182,6 +182,11 @@ class group (base_primitive):
         self.fuzz_complete  = False
         self.mutant_index   = 1      # XXX - should start mutating at 1, since the first item is the default. right?
 
+        # sanity check that values list only contains strings
+        if self.values != []:
+            for val in self.values:
+                assert type(val) is str, "Value list may only contain strings"
+                
 
     def mutate (self):
         '''
