@@ -28,7 +28,7 @@ class dns_hostname (blocks.block):
 
         # replace dots (.) with the substring length.
         for part in self.rendered.split("."):
-            new_str += chr(len(part)) + part
+            new_str += str(len(part)) + part
 
         # be sure to null terminate too.
         self.rendered = new_str + "\x00"
