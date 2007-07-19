@@ -14,7 +14,8 @@ CURRENT  = None
 class request (pgraph.node):
     def __init__ (self, name):
         '''
-        Top level container instantiated by s_initialize(). Can hold any block structure or primitive.
+        Top level container instantiated by s_initialize(). Can hold any block structure or primitive. This can
+        essentially be thought of as a super-block, root-block, daddy-block or whatever other alias you prefer.
 
         @type  name: String
         @param name: Name of this request
@@ -32,6 +33,38 @@ class request (pgraph.node):
         self.mutant_index  = 0       # current mutation index.
 
 
+    def get_primitive (self, index, running_count=0, stack=None):
+        '''
+        Calculate and return the mutating primitive at the specified index.
+    
+        @type  index: Integer
+        @param index: Mutant index at which to locate changing primitive
+        
+        @rtype:  Sulley Primitive
+        @return: The actual primitive at the specified test case index.
+        '''
+        
+        if not stack:
+            stack = self.stack
+        
+        for item in stack:
+            if running_count + item.num_mutations() > index:
+                # if the item is a block, step into it and continue looping
+                if isinstance(item, block):
+                    primitive = self.get_primitive(index, running_count, item.stack)
+                    
+                    if primitive:
+                        return primitive
+        
+                # otherwise return the primitive.
+                else:
+                    return item
+        
+            running_count += item.num_mutations()
+            
+        return None
+
+        
     def mutate (self):
         mutated = False
 
