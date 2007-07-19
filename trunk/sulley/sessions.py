@@ -58,7 +58,7 @@ class target:
             for key in self.procmon_options.keys():
                 eval('self.procmon.set_%s(self.procmon_options["%s"])' % (key, key))
 
-        # wait fro the network monitor to come alive and then set its options.
+        # wait for the network monitor to come alive and then set its options.
         if self.netmon:
             while 1:
                 try:
@@ -82,11 +82,12 @@ class connection (pgraph.edge.edge):
         transmissions to implement functionality such as challenge response systems. The callback method must follow
         this prototype::
 
-            def callback(node, edge, last_recv, sock)
+            def callback(session, node, edge, sock)
 
-        Where node is the node about to be sent, edge is the last edge along the current fuzz path to "node", last_recv
-        contains the data returned from the last socket transmission and sock is the live socket. A callback is also
-        useful in situations where, for example, the size of the next pack is specified in the first packet.
+        Where node is the node about to be sent, edge is the last edge along the current fuzz path to "node", session
+        is a pointer to the session instance which is useful for snagging data such as sesson.last_recv which contains
+        the data returned from the last socket transmission and sock is the live socket. A callback is also useful in
+        situations where, for example, the size of the next packet is specified in the first packet.
 
         @type  src:      Integer
         @param src:      Edge source ID
@@ -217,11 +218,12 @@ class session (pgraph.graph):
 
         If you register callback method, it must follow this prototype::
 
-            def callback(node, edge, last_recv, sock)
+            def callback(session, node, edge, sock)
 
-        Where node is the node about to be sent, edge is the last edge along the current fuzz path to "node", last_recv
-        contains the data returned from the last socket transmission and sock is the live socket. A callback is also
-        useful in situations where, for example, the size of the next pack is specified in the first packet. As another
+        Where node is the node about to be sent, edge is the last edge along the current fuzz path to "node", session
+        is a pointer to the session instance which is useful for snagging data such as sesson.last_recv which contains
+        the data returned from the last socket transmission and sock is the live socket. A callback is also useful in
+        situations where, for example, the size of the next packet is specified in the first packet. As another
         example, if you need to fill in the dynamic IP address of the target register a callback that snags the IP
         from sock.getpeername()[0].
 
@@ -659,13 +661,17 @@ class session (pgraph.graph):
         @param target: Target we are transmitting to
         '''
 
-        # if the edge has a callback, process it.
-        if edge.callback:
-            edge.callback(self, node, edge, self.last_recv)
+        data = None
 
         self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
 
-        data = node.render()
+        # if the edge has a callback, process it. the callback has the option to render the node, modify it and return.
+        if edge.callback:
+            data = edge.callback(self, node, edge, sock)
+
+        # if not data was returned by the callback, render the node here.
+        if not data:
+            data = node.render()
 
         # if data length is > 65507 and proto is UDP, truncate it.
         # XXX - this logic does not prevent duplicate test cases, need to address this in the future.
