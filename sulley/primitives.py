@@ -182,11 +182,11 @@ class group (base_primitive):
         self.fuzz_complete  = False
         self.mutant_index   = 1      # XXX - should start mutating at 1, since the first item is the default. right?
 
-        # sanity check that values list only contains strings
+        # sanity check that values list only contains strings (or raw data)
         if self.values != []:
             for val in self.values:
-                assert type(val) is str, "Value list may only contain strings"
-                
+                assert type(val) is str, "Value list may only contain strings or raw data"
+
 
     def mutate (self):
         '''
@@ -378,10 +378,10 @@ class string (base_primitive):
             self.value * 2,
             self.value * 10,
             self.value * 100,
-            
+
             # UTF-8
-            self.value * 2 + "\xfe",
-            self.value * 10 + "\xfe",
+            self.value * 2   + "\xfe",
+            self.value * 10  + "\xfe",
             self.value * 100 + "\xfe",
 
             # strings ripped from spike (and some others I added)
@@ -475,26 +475,23 @@ class string (base_primitive):
             s = s[:len(s)/2] + "\x00" + s[len(s)/2:]
             self.fuzz_library.append(s)
 
-        # truncate fuzz library items to user-supplied length and pad, removing duplicates
+        # truncate fuzz library items to user-supplied length and pad, removing duplicates.
         unique_mutants = []
         if self.size != -1:
             for mutant in self.fuzz_library:
-                # truncate
+                # truncate.
                 if len(mutant) > self.size:
                     mutant = mutant[:self.size]
-                # pad
-                else:
-                    mutant_list = list(mutant)
-                    filler = self.size - len(mutant)
-                    for i in xrange(0, filler):
-                        mutant_list.insert(len(mutant_list), "\x00")
-                    mutant = "".join(mutant_list)
                 
-                # add to unique list   
-                if mutant not in unique_mutants:        
+                # pad.
+                elif len(mutant) < self.size:
+                    mutant = mutant + self.padding * (self.size - len(mutant))
+
+                # add to unique list.
+                if mutant not in unique_mutants:
                     unique_mutants.append(mutant)
 
-            # assign unique list as fuzz library
+            # assign unique list as fuzz library.
             self.fuzz_library = unique_mutants
 
 

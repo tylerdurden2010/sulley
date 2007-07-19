@@ -56,15 +56,15 @@ def signed_tests ():
 def string_tests ():
 
     s_initialize("STRING UNIT TEST 1")
-    s_string("foo", size=200, name="string_1")
+    s_string("foo", size=200, name="sized_string")
 
     req = s_get("STRING UNIT TEST 1")
 
-    assert(len(req.names["string_1"].render()) == 3)
+    assert(len(req.names["sized_string"].render()) == 3)
 
-    # check that string padding and truncation are working correctly
+    # check that string padding and truncation are working correctly.
     for i in xrange(0, 50):
         s_mutate()
-        assert(len(req.names["string_1"].render()) == 200)
+        assert(len(req.names["sized_string"].render()) == 200)
         
   
