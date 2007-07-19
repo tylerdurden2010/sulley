@@ -187,6 +187,7 @@ class group (base_primitive):
         self.values         = values
         self.fuzzable       = True
 
+        self.s_type         = "group"
         self.value          = self.values[0]
         self.original_value = self.values[0]
         self.rendered       = ""
@@ -356,6 +357,7 @@ class static (base_primitive):
 
 ########################################################################################################################
 class string (base_primitive):
+
     def __init__ (self, value, **kwargs):
         '''
         Primitive that cycles through a library of "bad" strings.
