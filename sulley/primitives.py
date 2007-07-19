@@ -91,6 +91,7 @@ class delim (base_primitive):
         self.fuzzable      = fuzzable
         self.name          = name
 
+        self.s_type        = "delim"   # for ease of object identification
         self.rendered      = ""        # rendered value
         self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
         self.fuzz_library  = []        # library of fuzz heuristics
@@ -252,9 +253,10 @@ class random_data (base_primitive):
         self.fuzzable      = fuzzable
         self.name          = name
 
-        self.rendered      = ""        # rendered value
-        self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
-        self.mutant_index  = 0         # current mutation number
+        self.s_type        = "random_data"  # for ease of object identification
+        self.rendered      = ""             # rendered value
+        self.fuzz_complete = False          # flag if this primitive has been completely fuzzed
+        self.mutant_index  = 0              # current mutation number
 
 
     def mutate (self):
@@ -315,6 +317,7 @@ class static (base_primitive):
         self.name          = name
         self.fuzzable      = False       # every primitive needs this attribute.
         self.mutant_index  = 0
+        self.s_type        = "static"    # for ease of object identification
         self.rendered      = ""
         self.fuzz_complete = True
 
@@ -368,6 +371,7 @@ class string (base_primitive):
         self.fuzzable      = kwargs.get("fuzzable", True)
         self.name          = kwargs.get("name",     None)
 
+        self.s_type        = "string"  # for ease of object identification
         self.rendered      = ""        # rendered value
         self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
         self.mutant_index  = 0         # current mutation number
@@ -701,6 +705,7 @@ class bit_field (base_primitive):
 ########################################################################################################################
 class byte (bit_field):
     def __init__ (self, value, **kwargs):
+        self.s_type = "byte"
         if type(value) not in [int, long]:
             value       = struct.unpack(kwargs.get("endian", "<") + "B", value)[0]
 
@@ -710,6 +715,7 @@ class byte (bit_field):
 ########################################################################################################################
 class word (bit_field):
     def __init__ (self, value, **kwargs):
+        self.s_type = "word"
         if type(value) not in [int, long]:
             value = struct.unpack(kwargs.get("endian", "<") + "H", value)[0]
 
@@ -719,6 +725,7 @@ class word (bit_field):
 ########################################################################################################################
 class dword (bit_field):
     def __init__ (self, value, **kwargs):
+        self.s_type = "dword"
         if type(value) not in [int, long]:
             value = struct.unpack(kwargs.get("endian", "<") + "L", value)[0]
 
@@ -728,6 +735,7 @@ class dword (bit_field):
 ########################################################################################################################
 class qword (bit_field):
     def __init__ (self, value, **kwargs):
+        self.s_type = "qword"
         if type(value) not in [int, long]:
             value = struct.unpack(kwargs.get("endian", "<") + "Q", value)[0]
 
