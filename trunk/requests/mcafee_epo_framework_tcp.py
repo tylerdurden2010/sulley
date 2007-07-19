@@ -1,16 +1,5 @@
 from sulley import *
 
-from struct import pack
-
-# stupid one byte XOR
-def mcafee_xor(buf, poly=0xAA):
-    l = len(buf)
-    new_buf = ""
-
-    for char in buf:
-        new_buf += chr(ord(char) ^ poly)
-    
-    return new_buf
     
 ########################################################################################################################
 s_initialize("mcafee_epo_framework_tcp")
@@ -20,7 +9,7 @@ s_initialize("mcafee_epo_framework_tcp")
 
 s_static("POST", name="post_verb")
 s_delim(" ")
-s_group(values=["/spipe/pkg", "/spipe/file"])
+s_group(values=["/spipe/pkg", "/spipe/file", "default.htm"])
 s_delim("?")
 s_string("URL")
 s_delim("=")
