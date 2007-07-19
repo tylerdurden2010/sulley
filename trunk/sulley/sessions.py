@@ -136,6 +136,7 @@ class session (pgraph.graph):
         self.restart_interval    = kwargs.get("restart_interval", 0)
         self.timeout             = kwargs.get("timeout",          5.0)
         self.web_port            = kwargs.get("web_port",         26000)
+        self.crash_threshold     = kwargs.get("crash_threshold",  3)
 
         self.total_num_mutations = 0
         self.total_mutant_index  = 0
@@ -284,6 +285,7 @@ class session (pgraph.graph):
         data["restart_interval"]    = self.restart_interval
         data["timeout"]             = self.timeout
         data["web_port"]            = self.web_port
+        data["crash_threshold"]     = self.crash_threshold
         data["total_num_mutations"] = self.total_num_mutations
         data["total_mutant_index"]  = self.total_mutant_index
         data["netmon_results"]      = self.netmon_results
@@ -336,9 +338,21 @@ class session (pgraph.graph):
             self.log("fuzzed %d of %d total cases" % (self.total_mutant_index, self.total_num_mutations), 2)
 
             done_with_fuzz_node = False
+            crash_count         = 0
 
             # loop through all possible mutations of the fuzz node.
             while not done_with_fuzz_node:
+                
+                # if the user-supplied crash threshold is reached, exhaust this node
+                if crash_count == self.crash_threshold:
+                    self.log("crash threshold %d reached at mutation %d, exhausting node" % (self.crash_threshold, \
+                                                                                             self.total_mutant_index))
+                    # exhaust the node
+                    while self.fuzz_node.mutate():
+                        pass
+                        
+                    break
+                
                 # if we need to pause, do so.
                 self.pause()
 
@@ -409,7 +423,10 @@ class session (pgraph.graph):
                     time.sleep(self.sleep_time)
 
                     # poll the PED-RPC endpoints (netmon, procmon etc...) for the target.
-                    self.poll_pedrpc(target)
+                    crashed = self.poll_pedrpc(target)
+                    
+                    if crashed:
+                        crash_count += 1
 
                     # serialize the current session state to disk.
                     self.export_file()
@@ -447,6 +464,7 @@ class session (pgraph.graph):
         self.restart_interval    = data["restart_interval"]
         self.timeout             = data["timeout"]
         self.web_port            = data["web_port"]
+        self.crash_threshold     = data["crash_threshold"]
         self.total_num_mutations = data["total_num_mutations"]
         self.total_mutant_index  = data["total_mutant_index"]
         self.netmon_results      = data["netmon_results"]
@@ -524,6 +542,8 @@ class session (pgraph.graph):
         @param target: Session target whose PED-RPC services we are polling
         '''
 
+        crash_occurred = False
+        
         # kill the pcap thread and see how many bytes the sniffer recorded.
         if target.netmon:
             bytes = target.netmon.post_send()
@@ -532,6 +552,7 @@ class session (pgraph.graph):
 
         # check if our fuzz crashed the target. procmon.post_send() returns False if the target access violated.
         if target.procmon and not target.procmon.post_send():
+            crash_occurred = True
             self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
 
             # retrieve the primitive that caused the crash
@@ -552,6 +573,8 @@ class session (pgraph.graph):
 
             # start the target back up.
             self.restart_target(target, stop_first=False)
+            
+        return crash_occurred
 
 
     ####################################################################################################################
