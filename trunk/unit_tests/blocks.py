@@ -4,6 +4,7 @@ def run ():
     groups_and_num_test_cases()
     dependencies()
     repeaters()
+    get_primitive()
 
     # clear out the requests.
     blocks.REQUESTS = {}
@@ -119,3 +120,33 @@ def repeaters ():
     s_mutate()
     data = s_render()
     assert(len(data) == length)
+
+
+########################################################################################################################
+def get_primitive ():
+    s_initialize("GET PRIMITIVE TEST 1")
+
+    s_dword(0xdeadbeef, name="boss hog")
+    s_string("bloodhound gang", name="vagina")
+
+    if s_block_start("BLOCK1"):
+        s_string("foo", name="foo")
+        s_string("bar", name="bar")
+        s_dword(0x20)
+    s_block_end()
+
+    s_dword(0xdead)
+    s_dword(0x0fed)
+
+    s_string("sucka free at 2 in morning 7/18", name="uhntiss")
+
+    req1 = s_get("GET PRIMITIVE TEST 1")
+
+    # calculate the length of the mutation libraries dynamically since they may change with time.
+    num_str_mutations = req1.names["foo"].num_mutations()
+    num_int_mutations = req1.names["boss hog"].num_mutations()
+
+    assert(req1.get_primitive(num_str_mutations + num_int_mutations - 10).name == "vagina")
+    assert(req1.get_primitive(num_int_mutations + num_str_mutations + 1).name == "foo")
+    assert(req1.get_primitive(num_str_mutations * 2 + num_int_mutations + 1).name == "bar")
+    assert(req1.get_primitive(num_str_mutations * 3 + num_int_mutations * 4 + 1).name == "uhntiss")
