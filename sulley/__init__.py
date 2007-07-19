@@ -562,11 +562,14 @@ s_string_repeat      = custom_raise(ValueError, "NotImplementedError: s_string_r
 s_string_variable    = custom_raise(ValueError, "NotImplementedError: s_string_variable is not currently implemented, arguments were")
 s_string_variables   = custom_raise(ValueError, "NotImplementedError: s_string_variables is not currently implemented, arguments were")
 s_binary_repeat      = custom_raise(ValueError, "NotImplementedError: s_string_variables is not currently implemented, arguments were")
-s_cstring            = lambda x: s_string(x)
 s_unistring          = lambda x: s_string(x, encoding="utf_16_le")
 s_unistring_variable = custom_raise(ValueError, "NotImplementedError: s_unistring_variable is not currently implemented, arguments were")
 s_xdr_string         = custom_raise(ValueError, "LegoNotUtilizedError: XDR strings are available in the XDR lego, arguments were")
-    
+
+def s_cstring (x):
+    s_string(x)
+    s_static("\x00")
+
 s_binary_block_size_intel_halfword_plus_variable = custom_raise(ValueError, "SizerNotUtilizedError: Use the s_size primitive for including sizes, arguments were")
 s_binary_block_size_halfword_bigendian_variable  = custom_raise(ValueError, "SizerNotUtilizedError: Use the s_size primitive for including sizes, arguments were")
 s_binary_block_size_word_bigendian_plussome      = custom_raise(ValueError, "SizerNotUtilizedError: Use the s_size primitive for including sizes, arguments were")
