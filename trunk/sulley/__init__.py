@@ -548,7 +548,7 @@ s_repeater = s_repeat
 
 ### SPIKE Aliases
 
-def custom_raise(argument, msg):
+def custom_raise (argument, msg):
     def _(x):
         raise msg, argument(x)
     return _
