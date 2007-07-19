@@ -385,7 +385,7 @@ class session (pgraph.graph):
                             # if we reach this point the send was successful for break out of the while(1).
                             break
                         except:
-                            
+
                             # close the socket.
                             sock.close()
 
@@ -531,6 +531,17 @@ class session (pgraph.graph):
         # check if our fuzz crashed the target. procmon.post_send() returns False if the target access violated.
         if target.procmon and not target.procmon.post_send():
             self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
+
+            # retrieve the primitive that caused the crash
+            b_prim = self.fuzz_node.get_primitive(total_mutant_index)
+
+            # notify with as much information as possible
+            if not offending_primitive.name:
+                self.log("primitive lacks a name, type: %s, default value: %s" % (b_prim.s_type, b_prim.value))
+            else:
+                self.log("primitive name: %s, type: %s, default value: %s" % (b_prim.name, b_prim.s_type, b_prim.value))
+
+            # print crash synopsis
             self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
             self.log(self.procmon_results[self.total_mutant_index].split("\n")[0], 2)
 
@@ -650,9 +661,9 @@ class session (pgraph.graph):
             edge.callback(self, node, edge, self.last_recv)
 
         self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
-        
+
         data = node.render()
-        
+
         # if data length is > 65507 and proto is UDP, truncate it.
         # XXX - this logic does not prevent duplicate test cases, need to address this in the future.
         if self.proto == socket.SOCK_DGRAM:
@@ -660,12 +671,12 @@ class session (pgraph.graph):
             if len(data) > 65507:
                 self.log("Too much data for UDP, truncating to 65507 bytes")
                 data = data[:65507]
-        
+
         try:
             sock.send(data)
         except Exception, inst:
             self.log("Socket error: %s" % inst[1])
-            
+
         if self.proto == socket.SOCK_STREAM:
             # XXX - might have a need to increase this at some point. (possibly make it a class parameter)
             self.last_recv = sock.recv(10000)
