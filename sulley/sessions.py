@@ -533,13 +533,16 @@ class session (pgraph.graph):
             self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
 
             # retrieve the primitive that caused the crash
-            b_prim = self.fuzz_node.get_primitive(total_mutant_index)
+            offending_primitive = self.fuzz_node.get_primitive(self.total_mutant_index)
 
             # notify with as much information as possible
             if not offending_primitive.name:
-                self.log("primitive lacks a name, type: %s, default value: %s" % (b_prim.s_type, b_prim.value))
+                self.log("primitive lacks a name, type: %s, default value: %s" % (offending_primitive.s_type, \
+                                                                                  offending_primitive.original_value))
             else:
-                self.log("primitive name: %s, type: %s, default value: %s" % (b_prim.name, b_prim.s_type, b_prim.value))
+                self.log("primitive name: %s, type: %s, default value: %s" % (offending_primitive.name,   \
+                                                                              offending_primitive.s_type, \
+                                                                              offending_primitive.original_value))
 
             # print crash synopsis
             self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
