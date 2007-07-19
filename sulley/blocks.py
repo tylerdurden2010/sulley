@@ -36,35 +36,35 @@ class request (pgraph.node):
     def get_primitive (self, index, running_count=0, stack=None):
         '''
         Calculate and return the mutating primitive at the specified index.
-    
+
         @type  index: Integer
         @param index: Mutant index at which to locate changing primitive
-        
+
         @rtype:  Sulley Primitive
         @return: The actual primitive at the specified test case index.
         '''
-        
+
         if not stack:
             stack = self.stack
-        
+
         for item in stack:
             if running_count + item.num_mutations() > index:
                 # if the item is a block, step into it and continue looping
                 if isinstance(item, block):
                     primitive = self.get_primitive(index, running_count, item.stack)
-                    
+
                     if primitive:
                         return primitive
-        
+
                 # otherwise return the primitive.
                 else:
                     return item
-        
+
             running_count += item.num_mutations()
-            
+
         return None
 
-        
+
     def mutate (self):
         mutated = False
 
@@ -556,7 +556,6 @@ class repeat:
 
         if self.block_name not in self.request.names:
             raise sex.error("CAN NOT ADD REPEATER FOR NON-EXISTANT BLOCK: %s" % self.block_name)
-
 
         # propogate the fuzz library with the repetition counts.
         self.fuzz_library = range(self.min_reps, self.max_reps + 1, self.step)
