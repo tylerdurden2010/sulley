@@ -698,7 +698,8 @@ class session (pgraph.graph):
         else:
             self.last_recv = ""
 
-        self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=10)
+        if len(self.last_recv) > 0:
+            self.log("received: [%d] %s" % (len(self.last_recv), self.last_recv), level=10)
 
 
 ########################################################################################################################
