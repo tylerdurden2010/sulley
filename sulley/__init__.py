@@ -224,6 +224,8 @@ def s_size (block_name, **kwargs):
     @kwarg inclusive:  (Optional, def=False) Should the sizer count its own length?
     @type  signed:     Boolean
     @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+    @type  math:       Function
+    @kwarg math:       (Optional, def=None) Apply the mathematical operations defined in this function to the size
     @type  fuzzable:   Boolean
     @kwarg fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
     @type  name:       String

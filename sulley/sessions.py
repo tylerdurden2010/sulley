@@ -145,6 +145,7 @@ class session (pgraph.graph):
         self.netmon_results      = {}
         self.procmon_results     = {}
         self.pause_flag          = False
+        self.crashing_primitives = {}
 
         if self.proto == "tcp":
             self.proto = socket.SOCK_STREAM
@@ -342,17 +343,6 @@ class session (pgraph.graph):
 
             # loop through all possible mutations of the fuzz node.
             while not done_with_fuzz_node:
-                
-                # if the user-supplied crash threshold is reached, exhaust this node
-                if crash_count == self.crash_threshold:
-                    self.log("crash threshold %d reached at mutation %d, exhausting node" % (self.crash_threshold, \
-                                                                                             self.total_mutant_index))
-                    # exhaust the node
-                    while self.fuzz_node.mutate():
-                        pass
-                        
-                    break
-                
                 # if we need to pause, do so.
                 self.pause()
 
@@ -423,10 +413,7 @@ class session (pgraph.graph):
                     time.sleep(self.sleep_time)
 
                     # poll the PED-RPC endpoints (netmon, procmon etc...) for the target.
-                    crashed = self.poll_pedrpc(target)
-                    
-                    if crashed:
-                        crash_count += 1
+                    self.poll_pedrpc(target)
 
                     # serialize the current session state to disk.
                     self.export_file()
@@ -542,8 +529,6 @@ class session (pgraph.graph):
         @param target: Session target whose PED-RPC services we are polling
         '''
 
-        crash_occurred = False
-        
         # kill the pcap thread and see how many bytes the sniffer recorded.
         if target.netmon:
             bytes = target.netmon.post_send()
@@ -552,20 +537,23 @@ class session (pgraph.graph):
 
         # check if our fuzz crashed the target. procmon.post_send() returns False if the target access violated.
         if target.procmon and not target.procmon.post_send():
-            crash_occurred = True
             self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
 
-            # retrieve the primitive that caused the crash
+            # retrieve the primitive that caused the crash and increment it's individual crash count.
             offending_primitive = self.fuzz_node.get_primitive(self.total_mutant_index)
+            self.crashing_primitives[offending_primitive] = self.crashing_primitives.get(offending_primitive, 0) + 1
 
-            # notify with as much information as possible
-            if not offending_primitive.name:
-                self.log("primitive lacks a name, type: %s, default value: %s" % (offending_primitive.s_type, \
-                                                                                  offending_primitive.original_value))
-            else:
-                self.log("primitive name: %s, type: %s, default value: %s" % (offending_primitive.name,   \
-                                                                              offending_primitive.s_type, \
-                                                                              offending_primitive.original_value))
+            # notify with as much information as possible.
+            if not offending_primitive.name: msg = "primitive lacks a name, "
+            else:                            msg = "primitive name: %s, " % offending_primitive.name
+
+            msg += "type: %s, default value: %s" % (offending_primitive.s_type, offending_primitive.original_value)
+            self.log(msg)
+
+            # if the user-supplied crash threshold is reached, exhaust this node.
+            if self.crashing_primitives[offending_primitive] >= self.crash_threshold:
+                self.log("crash threshold reached for this primitive, exhausting.")
+                offending_primitive.exhaust()
 
             # print crash synopsis
             self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
@@ -573,8 +561,6 @@ class session (pgraph.graph):
 
             # start the target back up.
             self.restart_target(target, stop_first=False)
-            
-        return crash_occurred
 
 
     ####################################################################################################################
@@ -658,9 +644,6 @@ class session (pgraph.graph):
         Called by fuzz() on first run (not on recursive re-entry) to initialize variables, web interface, etc...
         '''
 
-        # XXX - TODO - expand this when we have parallel fuzzing setup.
-        target = self.targets[0]
-
         self.total_mutant_index  = 0
         self.total_num_mutations = self.num_mutations()
 
@@ -679,7 +662,7 @@ class session (pgraph.graph):
         @type  node:   Request (Node)
         @param node:   Request/Node to transmit
         @type  edge:   Connection (pgraph.edge)
-        @param edge:   Last edge along the current fuzz path to "node"
+        @param edge:   Edge along the current fuzz path from "node" to next node.
         @type  target: session.target
         @param target: Target we are transmitting to
         '''

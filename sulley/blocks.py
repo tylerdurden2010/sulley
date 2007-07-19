@@ -33,7 +33,7 @@ class request (pgraph.node):
         self.mutant_index  = 0       # current mutation index.
 
 
-    def get_primitive (self, index, running_count=0, stack=None):
+    def get_primitive (self, index):
         '''
         Calculate and return the mutating primitive at the specified index.
 
@@ -44,21 +44,11 @@ class request (pgraph.node):
         @return: The actual primitive at the specified test case index.
         '''
 
-        if not stack:
-            stack = self.stack
+        running_count = 0
 
-        for item in stack:
+        for item in self.walk():
             if running_count + item.num_mutations() > index:
-                # if the item is a block, step into it and continue looping
-                if isinstance(item, block):
-                    primitive = self.get_primitive(index, running_count, item.stack)
-
-                    if primitive:
-                        return primitive
-
-                # otherwise return the primitive.
-                else:
-                    return item
+                return item
 
             running_count += item.num_mutations()
 
@@ -167,6 +157,26 @@ class request (pgraph.node):
         for item in self.stack:
             if item.fuzzable:
                 item.reset()
+
+
+    def walk (self, stack=None):
+        '''
+        Recursively walk through and yield every primitive and block on the request stack.
+
+        @rtype:  Sulley Primitives
+        @return: Sulley Primitives
+        '''
+
+        if not stack:
+            stack = self.stack
+
+        for item in stack:
+            # if the item is a block, step into it and continue looping.
+            if isinstance(item, block):
+                for item in self.walk(item.stack):
+                    yield item
+            else:
+                yield item
 
 
 ########################################################################################################################
@@ -652,6 +662,8 @@ class size:
         @kwarg inclusive:  (Optional, def=False) Should the sizer count its own length?
         @type  signed:     Boolean
         @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+        @type  math:       Function
+        @kwarg math:       (Optional, def=None) Apply the mathematical operations defined in this function to the size
         @type  fuzzable:   Boolean
         @kwarg fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
         @type  name:       String
@@ -665,6 +677,7 @@ class size:
         self.format        = kwargs.get("format",    "binary")
         self.inclusive     = kwargs.get("inclusive", False)
         self.signed        = kwargs.get("signed",    False)
+        self.math          = kwargs.get("math",      lambda (x): x)
         self.fuzzable      = kwargs.get("fuzzable",  False)
         self.name          = kwargs.get("name",      None)
 
@@ -715,7 +728,7 @@ class size:
             else:              self_size = 0
 
             block                = self.request.closed_blocks[self.block_name]
-            self.bit_field.value = len(block.rendered) + self_size
+            self.bit_field.value = self.math(len(block.rendered) + self_size)
             self.rendered        = self.bit_field.render()
 
         # otherwise, add this sizer block to the requests callback list.

@@ -17,6 +17,16 @@ class base_primitive (object):
         self.value          = None      # current value of primitive.
 
 
+    def exhaust (self):
+        '''
+        Exhaust the possible mutations for this primitive.
+        '''
+
+        self.fuzz_complete  = True
+        self.mutant_index   = self.num_mutations()
+        self.value          = self.original_value
+
+
     def mutate (self):
         '''
         Mutate the primitive by stepping through the fuzz library, return False on completion.
@@ -486,7 +496,7 @@ class string (base_primitive):
                 # truncate.
                 if len(mutant) > self.size:
                     mutant = mutant[:self.size]
-                
+
                 # pad.
                 elif len(mutant) < self.size:
                     mutant = mutant + self.padding * (self.size - len(mutant))
