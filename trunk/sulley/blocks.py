@@ -31,28 +31,7 @@ class request (pgraph.node):
         self.names         = {}      # dictionary of directly accessible primitives.
         self.rendered      = ""      # rendered block structure.
         self.mutant_index  = 0       # current mutation index.
-
-
-    def get_primitive (self, index):
-        '''
-        Calculate and return the mutating primitive at the specified index.
-
-        @type  index: Integer
-        @param index: Mutant index at which to locate changing primitive
-
-        @rtype:  Sulley Primitive
-        @return: The actual primitive at the specified test case index.
-        '''
-
-        running_count = 0
-
-        for item in self.walk():
-            if running_count + item.num_mutations() > index:
-                return item
-
-            running_count += item.num_mutations()
-
-        return None
+        self.mutant        = None    # current primitive being mutated.
 
 
     def mutate (self):
@@ -61,6 +40,10 @@ class request (pgraph.node):
         for item in self.stack:
             if item.fuzzable and item.mutate():
                 mutated = True
+
+                if not isinstance(item, block):
+                    self.mutant = item
+
                 break
 
         if mutated:
@@ -241,6 +224,10 @@ class block:
             for item in self.stack:
                 if item.fuzzable and item.mutate():
                     mutated = True
+
+                    if not isinstance(item, block):
+                        self.request.mutant = item
+
                     break
 
             # if the possible mutations for the stack are exhausted.
@@ -269,6 +256,10 @@ class block:
                     for item in self.stack:
                         if item.fuzzable and item.mutate():
                             mutated = True
+
+                            if not isinstance(item, block):
+                                self.request.mutant = item
+
                             break
 
         #
@@ -279,6 +270,10 @@ class block:
             for item in self.stack:
                 if item.fuzzable and item.mutate():
                     mutated = True
+
+                    if not isinstance(item, block):
+                        self.request.mutant = item
+
                     break
 
         # if this block is dependant on another field, then manually update that fields value appropriately while we
@@ -302,7 +297,7 @@ class block:
                 self.request.names[self.dep].value = self.request.names[self.dep].original_value
 
         if mutated:
-            self.mutant_index += 1
+            self.request.mutant = item
 
         return mutated
 

@@ -540,20 +540,19 @@ class session (pgraph.graph):
             self.log("procmon detected access violation on test case #%d" % self.total_mutant_index)
 
             # retrieve the primitive that caused the crash and increment it's individual crash count.
-            offending_primitive = self.fuzz_node.get_primitive(self.total_mutant_index)
-            self.crashing_primitives[offending_primitive] = self.crashing_primitives.get(offending_primitive, 0) + 1
+            self.crashing_primitives[self.fuzz_node.mutant] = self.crashing_primitives.get(self.fuzz_node.mutant, 0) + 1
 
             # notify with as much information as possible.
-            if not offending_primitive.name: msg = "primitive lacks a name, "
-            else:                            msg = "primitive name: %s, " % offending_primitive.name
+            if not self.fuzz_node.mutant.name: msg = "primitive lacks a name, "
+            else:                              msg = "primitive name: %s, " % self.fuzz_node.mutant.name
 
-            msg += "type: %s, default value: %s" % (offending_primitive.s_type, offending_primitive.original_value)
+            msg += "type: %s, default value: %s" % (self.fuzz_node.mutant.s_type, self.fuzz_node.mutant.original_value)
             self.log(msg)
 
             # if the user-supplied crash threshold is reached, exhaust this node.
-            if self.crashing_primitives[offending_primitive] >= self.crash_threshold:
+            if self.crashing_primitives[self.fuzz_node.mutant] >= self.crash_threshold:
                 self.log("crash threshold reached for this primitive, exhausting.")
-                offending_primitive.exhaust()
+                self.fuzz_node.mutant.exhaust()
 
             # print crash synopsis
             self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
