@@ -23,7 +23,7 @@ class target:
         @type  host: String
         @param host: Hostname or IP address of target system
         @type  port: Integer
-        @param port: Port of target service 
+        @param port: Port of target service
         '''
 
         self.host      = host
