@@ -123,6 +123,8 @@ class session (pgraph.graph):
         @kwarg timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
         @type  restart_interval: Integer
         @kwarg restart_interval  (Optional, def=0) Restart the target after n test cases, disable by setting to 0
+        @type  crash_threshold:  Integer
+        @kwarg crash_threshold   (Optional, def=3) Maximum number of crashes allowed before a node is exhausted
         '''
 
         # run the parent classes initialization routine first.
