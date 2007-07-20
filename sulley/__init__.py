@@ -179,7 +179,7 @@ def s_checksum (block_name, algorithm="crc32", length=0, endian="<", name=None):
     blocks.CURRENT.push(checksum)
 
 
-def s_repeat (block_name, min_reps, max_reps, step=1, fuzzable=True, name=None):
+def s_repeat (block_name, min_reps=0, max_reps=None, step=1, variable=None, fuzzable=True, name=None):
     '''
     Repeat the rendered contents of the specified block cycling from min_reps to max_reps counting by step. By
     default renders to nothing. This block modifier is useful for fuzzing overflows in table entries. This block
@@ -190,18 +190,20 @@ def s_repeat (block_name, min_reps, max_reps, step=1, fuzzable=True, name=None):
     @type  block_name: String
     @param block_name: Name of block to apply sizer to
     @type  min_reps:   Integer
-    @param min_reps:   Minimum length of random block
+    @param min_reps:   (Optional, def=0) Minimum number of block repetitions
     @type  max_reps:   Integer
-    @param max_reps:   Maximum length of random block
+    @param max_reps:   (Optional, def=None) Maximum number of block repetitions
     @type  step:       Integer
     @param step:       (Optional, def=1) Step count between min and max reps
+    @type  variable:   Sulley Integer Primitive
+    @param variable:   (Optional, def=None) An integer primitive which will specify the number of repitions
     @type  fuzzable:   Boolean
     @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:       String
     @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    repeat = blocks.repeat(block_name, blocks.CURRENT, min_reps, max_reps, step, fuzzable, name)
+    repeat = blocks.repeat(block_name, blocks.CURRENT, min_reps, max_reps, step, variable, fuzzable, name)
     blocks.CURRENT.push(repeat)
 
 

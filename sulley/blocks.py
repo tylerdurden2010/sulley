@@ -523,7 +523,7 @@ class repeat:
     user does not need to be wary of this fact.
     '''
 
-    def __init__ (self, block_name, request, min_reps, max_reps, step=1, fuzzable=True, name=None):
+    def __init__ (self, block_name, request, min_reps=0, max_reps=None, step=1, variable=None, fuzzable=True, name=None):
         '''
         Repeat the rendered contents of the specified block cycling from min_reps to max_reps counting by step. By
         default renders to nothing. This block modifier is useful for fuzzing overflows in table entries. This block
@@ -534,11 +534,13 @@ class repeat:
         @type  request:    s_request
         @param request:    Request this block belongs to
         @type  min_reps:   Integer
-        @param min_reps:   Minimum number of block repetitions
+        @param min_reps:   (Optional, def=0) Minimum number of block repetitions
         @type  max_reps:   Integer
-        @param max_reps:   Maximum number of block repetitions
+        @param max_reps:   (Optional, def=None) Maximum number of block repetitions
         @type  step:       Integer
         @param step:       (Optional, def=1) Step count between min and max reps
+        @type  variable:   Sulley Integer Primitive
+        @param variable:   (Optional, def=None) Repititions will be derived from this variable, disables fuzzing
         @type  fuzzable:   Boolean
         @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
         @type  name:       String
@@ -547,6 +549,7 @@ class repeat:
 
         self.block_name    = block_name
         self.request       = request
+        self.variable      = variable
         self.min_reps      = min_reps
         self.max_reps      = max_reps
         self.step          = step
@@ -559,16 +562,32 @@ class repeat:
         self.fuzz_library  = []                         # library of static fuzz heuristics to cycle through.
         self.mutant_index  = 0                          # current mutation number
 
+        # ensure the target block exists.
         if self.block_name not in self.request.names:
             raise sex.error("CAN NOT ADD REPEATER FOR NON-EXISTANT BLOCK: %s" % self.block_name)
 
-        # propogate the fuzz library with the repetition counts.
-        self.fuzz_library = range(self.min_reps, self.max_reps + 1, self.step)
+        # ensure the user specified either a variable to tie this repeater to or a min/max val.
+        if self.variable == None and self.max_reps == None:
+            raise sex.error("REPEATER FOR BLOCK %s DOES NOT HAVE A MIN/MAX OR VARIABLE BINDING" % self.block_name)
+
+        # if a variable is specified, ensure it is an integer type.
+        if self.variable and not isinstance(self.variable, primitives.bit_field):
+            print self.variable
+            raise sex.error("ATTEMPT TO BIND THE REPEATER FOR BLOCK %s TO A NON INTEGER PRIMITIVE" % self.block_name)
+
+        # if not binding variable was specified, propogate the fuzz library with the repetition counts.
+        if not self.variable:
+            self.fuzz_library = range(self.min_reps, self.max_reps + 1, self.step)
+        # otherwise, disable fuzzing as the repitition count is determined by the variable.
+        else:
+            self.fuzzable = False
 
 
     def mutate (self):
         '''
-        Mutate the primitive by stepping through the fuzz library, return False on completion.
+        Mutate the primitive by stepping through the fuzz library, return False on completion. If variable-bounding is
+        specified then fuzzing is implicitly disabled. Instead, the render() routine will properly calculate the
+        correct repitition and return the appropriate data.
 
         @rtype:  Boolean
         @return: True on success, False otherwise.
@@ -578,7 +597,7 @@ class repeat:
         if self.block_name not in self.request.closed_blocks:
             raise sex.error("CAN NOT APPLY REPEATER TO UNCLOSED BLOCK: %s" % self.block_name)
 
-        # if we've ran out of mutations, raise the completion flag.
+        # if we've run out of mutations, raise the completion flag.
         if self.mutant_index == self.num_mutations():
             self.fuzz_complete = True
 
@@ -616,6 +635,11 @@ class repeat:
         # if the target block for this sizer is not closed, raise an exception.
         if self.block_name not in self.request.closed_blocks:
             raise sex.error("CAN NOT APPLY REPEATER TO UNCLOSED BLOCK: %s" % self.block_name)
+
+        # if a variable-bounding was specified then set the value appropriately.
+        if self.variable:
+            block      = self.request.closed_blocks[self.block_name]
+            self.value = block.rendered * self.variable.value
 
         self.rendered = self.value
         return self.rendered
