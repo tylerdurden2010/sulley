@@ -8,7 +8,7 @@ import os
 
 from sulley import pedrpc
 
-sys.path.append(r"..\..\..\paimei")
+sys.path.append(r"..\..\paimei")
 
 from pydbg         import *
 from pydbg.defines import *
