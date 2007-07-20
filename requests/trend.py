@@ -139,3 +139,20 @@ for op, submax in [(0x1, 22), (0x2, 19), (0x3, 85), (0x5, 25), (0xa, 49), (0x1f,
         # [in] long arg_6
         s_static(struct.pack("<L", 0x5000)) # output buffer size
     s_block_end()
+
+
+########################################################################################################################
+s_initialize("5005")
+"""
+    Trend Micro Server Protect (EarthAgent.exe)
+    
+    Some custom protocol listening on TCP port 5005
+"""
+
+s_static("\x21\x43\x65\x87")      # magic
+# command
+s_static("\x00\x00\x00\x00")  # dunno
+s_static("\x01\x00\x00\x00")  # dunno, but observed static
+# length
+s_static("\xe8\x03\x00\x00")  # dunno, but observed static
+s_static("\x00\x00\x00\x00")  # dunno, but observed static
