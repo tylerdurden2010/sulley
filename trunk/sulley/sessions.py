@@ -124,7 +124,7 @@ class session (pgraph.graph):
         @type  restart_interval: Integer
         @kwarg restart_interval  (Optional, def=0) Restart the target after n test cases, disable by setting to 0
         @type  crash_threshold:  Integer
-        @kwarg crash_threshold   (Optional, def=3) Maximum number of crashes allowed before a node is exhauste
+        @kwarg crash_threshold   (Optional, def=3) Maximum number of crashes allowed before a node is exhaust
         '''
 
         # run the parent classes initialization routine first.
