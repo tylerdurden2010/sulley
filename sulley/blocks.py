@@ -663,7 +663,7 @@ class size:
     user does not need to be wary of this fact.
     '''
 
-    def __init__ (self, block_name, request, **kwargs):
+    def __init__ (self, block_name, request, length=4, endian="<", format="binary", inclusive=False, signed=False, math=lambda (x): x, fuzzable=False, name=None):
         '''
         Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
         currently open blocks.
@@ -673,34 +673,34 @@ class size:
         @type  request:    s_request
         @param request:    Request this block belongs to
         @type  length:     Integer
-        @kwarg length:     (Optional, def=4) Length of sizer
+        @param length:     (Optional, def=4) Length of sizer
         @type  endian:     Character
-        @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+        @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
         @type  format:     String
-        @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
+        @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
         @type  inclusive:  Boolean
-        @kwarg inclusive:  (Optional, def=False) Should the sizer count its own length?
+        @param inclusive:  (Optional, def=False) Should the sizer count its own length?
         @type  signed:     Boolean
-        @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+        @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
         @type  math:       Function
-        @kwarg math:       (Optional, def=None) Apply the mathematical operations defined in this function to the size
+        @param math:       (Optional, def=None) Apply the mathematical operations defined in this function to the size
         @type  fuzzable:   Boolean
-        @kwarg fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
+        @param fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
         @type  name:       String
-        @kwarg name:       Name of this sizer field
+        @param name:       Name of this sizer field
         '''
 
         self.block_name    = block_name
         self.request       = request
-        self.length        = kwargs.get("length",    4)
-        self.endian        = kwargs.get("endian",    "<")
-        self.format        = kwargs.get("format",    "binary")
-        self.inclusive     = kwargs.get("inclusive", False)
-        self.signed        = kwargs.get("signed",    False)
-        self.math          = kwargs.get("math",      lambda (x): x)
-        self.fuzzable      = kwargs.get("fuzzable",  False)
-        self.name          = kwargs.get("name",      None)
-
+        self.length        = length
+        self.endian        = endian
+        self.format        = format
+        self.inclusive     = inclusive
+        self.signed        = signed
+        self.math          = math
+        self.fuzzable      = fuzzable
+        self.name          = name
+        
         self.bit_field     = primitives.bit_field(0, self.length*8, endian=self.endian, format=self.format, signed=self.signed)
         self.rendered      = ""
         self.fuzz_complete = self.bit_field.fuzz_complete

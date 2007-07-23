@@ -105,7 +105,7 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, **kwargs):
+    def __init__ (self, session_filename=None, skip=0, sleep_time=1.0, log_level=2, proto="tcp", restart_interval=0, timeout=5.0, web_port=26000, crash_threshold=3):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
@@ -130,15 +130,15 @@ class session (pgraph.graph):
         # run the parent classes initialization routine first.
         pgraph.graph.__init__(self)
 
-        self.session_filename    = kwargs.get("session_filename", None)
-        self.skip                = kwargs.get("skip",             0)
-        self.sleep_time          = kwargs.get("sleep_time",       1.0)
-        self.log_level           = kwargs.get("log_level",        2)
-        self.proto               = kwargs.get("proto",            "tcp")
-        self.restart_interval    = kwargs.get("restart_interval", 0)
-        self.timeout             = kwargs.get("timeout",          5.0)
-        self.web_port            = kwargs.get("web_port",         26000)
-        self.crash_threshold     = kwargs.get("crash_threshold",  3)
+        self.session_filename    = session_filename
+        self.skip                = skip
+        self.sleep_time          = sleep_time
+        self.log_level           = log_level
+        self.proto               = proto
+        self.restart_interval    = restart_interval
+        self.timeout             = timeout
+        self.web_port            = web_port
+        self.crash_threshold     = crash_threshold
 
         self.total_num_mutations = 0
         self.total_mutant_index  = 0
