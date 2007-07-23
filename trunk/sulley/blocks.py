@@ -663,7 +663,7 @@ class size:
     user does not need to be wary of this fact.
     '''
 
-    def __init__ (self, block_name, request, length=4, endian="<", format="binary", inclusive=False, signed=False, math=lambda (x): x, fuzzable=False, name=None):
+    def __init__ (self, block_name, request, length=4, endian="<", format="binary", inclusive=False, signed=False, math=None, fuzzable=False, name=None):
         '''
         Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
         currently open blocks.
@@ -707,6 +707,9 @@ class size:
         self.fuzz_library  = self.bit_field.fuzz_library
         self.mutant_index  = self.bit_field.mutant_index
         self.value         = self.bit_field.value
+
+        if self.math == None:
+            self.math = lambda (x): x
 
 
     def mutate (self):

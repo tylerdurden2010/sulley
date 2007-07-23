@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import getopt
+from win32api import GetShortPathName
 
 from sulley import pedrpc
 
@@ -39,8 +40,8 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
         self.host      = host
         self.port      = port
-        self.vmrun     = vmrun
-        self.vmx       = vmx
+        self.vmrun     = GetShortPathName(r"%s" % vmrun)
+        self.vmx       = GetShortPathName(r"%s" % vmx)
         self.snap_name = snap_name
         self.log_level = log_level
 
@@ -100,7 +101,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
             pipe = os.popen(command)
             out  = pipe.readlines()
-            
+
             try:
                 pipe.close()
             except IOError:
@@ -127,22 +128,30 @@ class vmcontrol_pedrpc_server (pedrpc.server):
             snap_name = self.snap_name
 
         self.log("deleting snapshot: %s" % snap_name, 2)
-        return self.vmcommand("%s deleteSnapshot %s \"%s\"" % (self.vmrun, self.vmx, snap_name))
+
+        command = self.vmrun + " deleteSnapshot " + self.vmx + " " + '"' + snap_name + '"'
+        return self.vmcommand(command)
 
 
     def list (self):
         self.log("listing running images", 2)
-        return self.vmcommand("%s list" % self.vmrun)
+
+        command = self.vmrun + " list"
+        return self.vmcommand(command)
 
 
     def list_snapshots (self):
         self.log("listing snapshots", 2)
-        return self.vmcommand("%s listSnapshots %s" % (self.vmrun, self.vmx))
+
+        command = self.vmrun + " listSnapshots " + self.vmx
+        return self.vmcommand(command)
 
 
     def reset (self):
         self.log("resetting image", 2)
-        return self.vmcommand("%s reset %s" % (self.vmrun, self.vmx))
+
+        command = self.vmrun + " reset " + self.vmx
+        return self.vmcommand(command)
 
 
     def revert_to_snapshot (self, snap_name=None):
@@ -150,7 +159,9 @@ class vmcontrol_pedrpc_server (pedrpc.server):
             snap_name = self.snap_name
 
         self.log("reverting to snapshot: %s" % snap_name, 2)
-        return self.vmcommand("%s revertToSnapshot %s \"%s\"" % (self.vmrun, self.vmx, snap_name))
+
+        command = self.vmrun + " revertToSnapshot " + self.vmx + " " + '"' + snap_name + '"'
+        return self.vmcommand(command)
 
 
     def snapshot (self, snap_name=None):
@@ -158,22 +169,31 @@ class vmcontrol_pedrpc_server (pedrpc.server):
             snap_name = self.snap_name
 
         self.log("taking snapshot: %s" % snap_name, 2)
-        return self.vmcommand("%s snapshot %s \"%s\"" % (self.vmrun, self.vmx, snap_name))
+
+        command = self.vmrun + " snapshot " + self.vmx + " " + '"' + snap_name + '"'
+
+        return self.vmcommand(command)
 
 
     def start (self):
         self.log("starting image", 2)
-        return self.vmcommand("%s start %s" % (self.vmrun, self.vmx))
+
+        command = self.vmrun + " start " + self.vmx
+        return self.vmcommand(command)
 
 
     def stop (self):
         self.log("stopping image", 2)
-        return self.vmcommand("%s stop %s" % (self.vmrun, self.vmx))
+
+        command = self.vmrun + " stop " + self.vmx
+        return self.vmcommand(command)
 
 
     def suspend (self):
         self.log("suspending image", 2)
-        return self.vmcommand("%s suspend %s" % (self.vmrun, self.vmx))
+
+        command = self.vmrun + " suspend " + self.vmx
+        return self.vmcommand(command)
 
 
     ###
@@ -192,7 +212,9 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
 
     def is_target_running (self):
-        return self.vmx.lower() in self.list().lower()
+        vmx_trimmed = "\\".join(self.vmx.split("\\")[:-1])
+
+        return vmx_trimmed.lower() in self.list().lower()
 
 
     def wait (self):
