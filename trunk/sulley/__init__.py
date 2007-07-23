@@ -207,7 +207,7 @@ def s_repeat (block_name, min_reps=0, max_reps=None, step=1, variable=None, fuzz
     blocks.CURRENT.push(repeat)
 
 
-def s_size (block_name, **kwargs):
+def s_size (block_name, length=4, endian="<", format="binary", inclusive=False, signed=False, math=None, fuzzable=False, name=None):
     '''
     Create a sizer block bound to the block with the specified name. You *can not* create a sizer for any
     currently open blocks.
@@ -217,28 +217,28 @@ def s_size (block_name, **kwargs):
     @type  block_name: String
     @param block_name: Name of block to apply sizer to
     @type  length:     Integer
-    @kwarg length:     (Optional, def=4) Length of sizer
+    @param length:     (Optional, def=4) Length of sizer
     @type  endian:     Character
-    @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+    @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
     @type  format:     String
-    @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
+    @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
     @type  inclusive:  Boolean
-    @kwarg inclusive:  (Optional, def=False) Should the sizer count its own length?
+    @param inclusive:  (Optional, def=False) Should the sizer count its own length?
     @type  signed:     Boolean
-    @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+    @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
     @type  math:       Function
-    @kwarg math:       (Optional, def=None) Apply the mathematical operations defined in this function to the size
+    @param math:       (Optional, def=None) Apply the mathematical operations defined in this function to the size
     @type  fuzzable:   Boolean
-    @kwarg fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
+    @param fuzzable:   (Optional, def=False) Enable/disable fuzzing of this sizer
     @type  name:       String
-    @kwarg name:       Name of this sizer field
+    @param name:       Name of this sizer field
     '''
 
     # you can't add a size for a block currently in the stack.
     if block_name in blocks.CURRENT.block_stack:
         raise sex.error("CAN NOT ADD A SIZE FOR A BLOCK CURRENTLY IN THE STACK")
 
-    size = blocks.size(block_name, blocks.CURRENT, **kwargs)
+    size = blocks.size(block_name, blocks.CURRENT, length, endian, format, inclusive, signed, math, fuzzable, name)
     blocks.CURRENT.push(size)
 
 
@@ -383,29 +383,29 @@ def s_static (value, name=None):
     blocks.CURRENT.push(static)
 
 
-def s_string (value, **kwargs):
+def s_string (value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, name=None):
     '''
     Push a string onto the current block stack.
 
     @type  value:    String
     @param value:    Default string value
     @type  size:     Integer
-    @kwarg size:     (Optional, def=-1) Static size of this field, leave -1 for dynamic.
+    @param size:     (Optional, def=-1) Static size of this field, leave -1 for dynamic.
     @type  padding:  Character
-    @kwarg padding:  (Optional, def="\\x00") Value to use as padding to fill static field size.
+    @param padding:  (Optional, def="\\x00") Value to use as padding to fill static field size.
     @type  encoding: String
-    @kwarg encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
+    @param encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
     @type  fuzzable: Boolean
-    @kwarg fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
+    @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:     String
-    @kwarg name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
+    @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    s = primitives.string(value, **kwargs)
+    s = primitives.string(value, size, padding, encoding, fuzzable, name)
     blocks.CURRENT.push(s)
 
 
-def s_bit_field (value, width, **kwargs):
+def s_bit_field (value, width, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
     '''
     Push a variable length bit field onto the current block stack.
 
@@ -416,24 +416,24 @@ def s_bit_field (value, width, **kwargs):
     @type  width:      Integer
     @param width:      Width of bit fields
     @type  endian:     Character
-    @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+    @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
     @type  format:     String
-    @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
+    @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
     @type  signed:     Boolean
-    @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+    @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
     @type  full_range: Boolean
-    @kwarg full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
+    @param full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
     @type  fuzzable:   Boolean
-    @kwarg fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+    @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:       String
-    @kwarg name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+    @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    bit_field = primitives.bit_field(value, width, **kwargs)
+    bit_field = primitives.bit_field(value, width, endian, format, signed, full_range, fuzzable, name)
     blocks.CURRENT.push(bit_field)
 
 
-def s_byte (value, **kwargs):
+def s_byte (value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
     '''
     Push a byte onto the current block stack.
 
@@ -442,24 +442,24 @@ def s_byte (value, **kwargs):
     @type  value:      Integer
     @param value:      Default integer value
     @type  endian:     Character
-    @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+    @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
     @type  format:     String
-    @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
+    @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
     @type  signed:     Boolean
-    @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+    @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
     @type  full_range: Boolean
-    @kwarg full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
+    @param full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
     @type  fuzzable:   Boolean
-    @kwarg fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+    @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:       String
-    @kwarg name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+    @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    byte = primitives.byte(value, **kwargs)
+    byte = primitives.byte(value, endian, format, signed, full_range, fuzzable, name)
     blocks.CURRENT.push(byte)
 
 
-def s_word (value, **kwargs):
+def s_word (value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
     '''
     Push a word onto the current block stack.
 
@@ -468,24 +468,24 @@ def s_word (value, **kwargs):
     @type  value:      Integer
     @param value:      Default integer value
     @type  endian:     Character
-    @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+    @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
     @type  format:     String
-    @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
+    @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
     @type  signed:     Boolean
-    @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+    @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
     @type  full_range: Boolean
-    @kwarg full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
+    @param full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
     @type  fuzzable:   Boolean
-    @kwarg fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+    @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:       String
-    @kwarg name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+    @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    word = primitives.word(value, **kwargs)
+    word = primitives.word(value, endian, format, signed, full_range, fuzzable, name)
     blocks.CURRENT.push(word)
 
 
-def s_dword (value, **kwargs):
+def s_dword (value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
     '''
     Push a double word onto the current block stack.
 
@@ -494,24 +494,24 @@ def s_dword (value, **kwargs):
     @type  value:      Integer
     @param value:      Default integer value
     @type  endian:     Character
-    @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+    @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
     @type  format:     String
-    @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
+    @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
     @type  signed:     Boolean
-    @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+    @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
     @type  full_range: Boolean
-    @kwarg full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
+    @param full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
     @type  fuzzable:   Boolean
-    @kwarg fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+    @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:       String
-    @kwarg name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+    @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    dword = primitives.dword(value, **kwargs)
+    dword = primitives.dword(value, endian, format, signed, full_range, fuzzable, name)
     blocks.CURRENT.push(dword)
 
 
-def s_qword (value, **kwargs):
+def s_qword (value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
     '''
     Push a quad word onto the current block stack.
 
@@ -520,20 +520,20 @@ def s_qword (value, **kwargs):
     @type  value:      Integer
     @param value:      Default integer value
     @type  endian:     Character
-    @kwarg endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
+    @param endian:     (Optional, def=LITTLE_ENDIAN) Endianess of the bit field (LITTLE_ENDIAN: <, BIG_ENDIAN: >)
     @type  format:     String
-    @kwarg format:     (Optional, def=binary) Output format, "binary" or "ascii"
+    @param format:     (Optional, def=binary) Output format, "binary" or "ascii"
     @type  signed:     Boolean
-    @kwarg signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
+    @param signed:     (Optional, def=False) Make size signed vs. unsigned (applicable only with format="ascii")
     @type  full_range: Boolean
-    @kwarg full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
+    @param full_range: (Optional, def=False) If enabled the field mutates through *all* possible values.
     @type  fuzzable:   Boolean
-    @kwarg fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
+    @param fuzzable:   (Optional, def=True) Enable/disable fuzzing of this primitive
     @type  name:       String
-    @kwarg name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
+    @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    qword = primitives.qword(value, **kwargs)
+    qword = primitives.qword(value, endian, format, signed, full_range, fuzzable, name)
     blocks.CURRENT.push(qword)
 
 
