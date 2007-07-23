@@ -691,11 +691,15 @@ class session (pgraph.graph):
         try:
             sock.send(data)
         except Exception, inst:
-            self.log("Socket error: %s" % inst[1])
+            self.log("Socket error, send: %s" % inst[1])
 
         if self.proto == socket.SOCK_STREAM:
             # XXX - might have a need to increase this at some point. (possibly make it a class parameter)
-            self.last_recv = sock.recv(10000)
+            try:
+                self.last_recv = sock.recv(10000)
+            except Exception, inst:
+                self.log("Socker error, recv: %s" % inst[1])
+                self.last_recv = ""
         else:
             self.last_recv = ""
 
