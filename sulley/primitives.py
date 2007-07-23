@@ -568,7 +568,7 @@ class bit_field (base_primitive):
 
         assert(type(value) is int or type(value) is long)
         assert(type(width) is int or type(value) is long)
-        
+
 
         self.value         = self.original_value = value
         self.width         = width
@@ -589,7 +589,7 @@ class bit_field (base_primitive):
             self.max_num = self.to_decimal("1" * width)
 
         assert(type(self.max_num) is int or type(self.max_num) is long)
-        
+
         # build the fuzz library.
         if self.full_range:
             # add all possible values.

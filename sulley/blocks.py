@@ -43,7 +43,7 @@ class request (pgraph.node):
 
                 if not isinstance(item, block):
                     self.mutant = item
-                
+
                 break
 
         if mutated:
@@ -700,7 +700,7 @@ class size:
         self.math          = math
         self.fuzzable      = fuzzable
         self.name          = name
-        
+
         self.bit_field     = primitives.bit_field(0, self.length*8, endian=self.endian, format=self.format, signed=self.signed)
         self.rendered      = ""
         self.fuzz_complete = self.bit_field.fuzz_complete
