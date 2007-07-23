@@ -43,7 +43,7 @@ class request (pgraph.node):
 
                 if not isinstance(item, block):
                     self.mutant = item
-
+                
                 break
 
         if mutated:
@@ -71,7 +71,7 @@ class request (pgraph.node):
 
     def pop (self):
         '''
-        The last open block was closed, so pop it off of the block stock.
+        The last open block was closed, so pop it off of the block stack.
         '''
 
         if not self.block_stack:
@@ -297,7 +297,8 @@ class block:
                 self.request.names[self.dep].value = self.request.names[self.dep].original_value
 
         if mutated:
-            self.request.mutant = item
+            if not isinstance(item, block):
+                self.request.mutant = item
 
         return mutated
 
