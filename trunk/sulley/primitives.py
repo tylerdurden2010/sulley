@@ -721,41 +721,37 @@ class bit_field (base_primitive):
 class byte (bit_field):
     def __init__ (self, value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
         self.s_type  = "byte"
-        self.max_num = None
         if type(value) not in [int, long]:
             value       = struct.unpack(endian + "B", value)[0]
 
-        bit_field.__init__(self, value, 8, self.max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 8, None, endian, format, signed, full_range, fuzzable, name)
 
 
 ########################################################################################################################
 class word (bit_field):
     def __init__ (self, value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
         self.s_type  = "word"
-        self.max_num = None
         if type(value) not in [int, long]:
             value = struct.unpack(endian + "H", value)[0]
 
-        bit_field.__init__(self, value, 16, self.max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 16, None, endian, format, signed, full_range, fuzzable, name)
 
 
 ########################################################################################################################
 class dword (bit_field):
     def __init__ (self, value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
         self.s_type  = "dword"
-        self.max_num = None
         if type(value) not in [int, long]:
             value = struct.unpack(endian + "L", value)[0]
 
-        bit_field.__init__(self, value, 32, self.max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 32, None, endian, format, signed, full_range, fuzzable, name)
 
 
 ########################################################################################################################
 class qword (bit_field):
     def __init__ (self, value, endian="<", format="binary", signed=False, full_range=False, fuzzable=True, name=None):
         self.s_type  = "qword"
-        self.max_num = None
         if type(value) not in [int, long]:
             value = struct.unpack(endian + "Q", value)[0]
 
-        bit_field.__init__(self, value, 64, self.max_num, endian, format, signed, full_range, fuzzable, name)
+        bit_field.__init__(self, value, 64, None, endian, format, signed, full_range, fuzzable, name)
