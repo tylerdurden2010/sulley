@@ -4,8 +4,15 @@ import os
 import sys
 import time
 import getopt
-from win32api import GetShortPathName
-from win32com.shell import shell
+
+try:
+    from win32api import GetShortPathName
+    from win32com.shell import shell
+except:
+    if os.name == "nt":
+        print "[!] Failed to import win32api/win32com modules, please install these! Bailing..."
+        sys.exit(1) 
+        
 
 from sulley import pedrpc
 
@@ -101,9 +108,15 @@ class vmcontrol_pedrpc_server (pedrpc.server):
                 log_level = int(log_level)
             else:
                 log_level = 1
+         
+        # if we're on windows, get the DOS path names
+        if os.name == "nt":
+            self.vmrun       = GetShortPathName(r"%s" % vmrun)
+            self.vmx         = GetShortPathName(r"%s" % vmx)
+        else:
+            self.vmrun = vmrun
+            self.vmx   = vmx
             
-        self.vmrun       = GetShortPathName(r"%s" % vmrun)
-        self.vmx         = GetShortPathName(r"%s" % vmx)
         self.snap_name   = snap_name
         self.log_level   = log_level
         self.interactive = interactive
