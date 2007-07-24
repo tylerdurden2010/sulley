@@ -295,10 +295,11 @@ if __name__ == "__main__":
     except getopt.GetoptError:
         ERR(USAGE)
 
-    vmrun     = r"C:\progra~1\vmware\vmware~1\vmrun.exe"
-    vmx       = None
-    snap_name = None
-    log_level = 1
+    vmrun       = r"C:\progra~1\vmware\vmware~1\vmrun.exe"
+    vmx         = None
+    snap_name   = None
+    log_level   = 1
+    interactive = False
 
     for opt, arg in opts:
         if opt in ("-x", "--vmx"):         vmx       = arg
