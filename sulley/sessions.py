@@ -13,6 +13,163 @@ import sex
 
 
 ########################################################################################################################
+class parrallel_fuzz (threading.Thread):
+    def __init__ (self, session, target):
+        threading.Thread.__init__(self)
+        
+        self.session = session
+        self.target  = target
+        
+        self.setName(self.target.host)
+
+
+    def fuzz (self, this_node=None, path=[]):
+        '''
+        Call this routine to get the ball rolling. No arguments are necessary as they are both utilized internally
+        during the recursive traversal of the session graph.
+
+        @type  this_node: request (node)
+        @param this_node: (Optional, def=None) Current node that is being fuzzed.
+        @type  path:      List
+        @param path:      (Optional, def=[]) Nodes along the path to the current one being fuzzed.
+        '''
+
+        # if no node is specified, then we start from the root node and initialize the session.
+        if not this_node:
+            this_node = self.session.root
+
+            try:    self.session.server_init()
+            except: return
+
+        # step through every edge from the current node.
+        for edge in self.session.edges_from(this_node.id):
+            # the destination node is the one actually being fuzzed.
+            self.session.fuzz_node = self.session.nodes[edge.dst]
+            num_mutations  = self.session.fuzz_node.num_mutations()
+
+            # keep track of the path as we fuzz through it, don't count the root node.
+            # we keep track of edges as opposed to nodes because if there is more then one path through a set of
+            # given nodes we don't want any ambiguity.
+            if edge.src != self.session.root.id:
+                path.append(edge)
+
+            current_path  = " -> ".join([self.session.nodes[e.src].name for e in path])
+            current_path += " -> %s" % self.session.fuzz_node.name
+
+            self.log("current fuzz path: %s" % current_path, 2)
+            self.log("fuzzed %d of %d total cases" % (self.session.total_mutant_index, self.session.total_num_mutations), 2)
+
+            done_with_fuzz_node = False
+            crash_count         = 0
+
+            # loop through all possible mutations of the fuzz node.
+            while not done_with_fuzz_node:
+                # if we need to pause, do so.
+                self.session.pause()
+
+                # if we have exhausted the mutations of the fuzz node, break out of the while(1).
+                # note: when mutate() returns False, the node has been reverted to the default (valid) state.
+                if not self.session.fuzz_node.mutate():
+                    self.log("all possible mutations for current fuzz node exhausted", 2)
+                    done_with_fuzz_node = True
+
+                # make a record in the session that a mutation was made.
+                self.session.total_mutant_index += 1
+
+                # if we've hit the restart interval, restart the target.
+                if self.session.restart_interval and self.session.total_mutant_index % self.session.restart_interval == 0:
+                    self.log("restart interval of %d reached" % self.session.restart_interval)
+                    self.session.restart_target(self.target)
+
+                # if we don't need to skip the current test case.
+                if self.session.total_mutant_index > self.session.skip:
+                    self.log("fuzzing %d of %d" % (self.session.fuzz_node.mutant_index, num_mutations), 2)
+
+                    # attempt to complete a fuzz transmission. keep trying until we are successful, whenever a failure
+                    # occurs, restart the target.
+                    while 1:
+                        #try:
+                        # instruct the debugger/sniffer that we are about to send a new fuzz.
+                        if self.target.procmon: self.target.procmon.pre_send(self.session.total_mutant_index)
+                        if self.target.netmon:  self.target.netmon.pre_send(self.session.total_mutant_index)
+
+                        # establish a connection to the target.
+                        sock = socket.socket(socket.AF_INET, self.session.proto)
+                        sock.settimeout(self.session.timeout)
+                        sock.connect((self.target.host, self.target.port))
+
+                        # if the user registered a pre-send function, pass it the sock and let it do the deed.
+                        self.session.pre_send(sock)
+
+                        # send out valid requests for each node in the current path up to the node we are fuzzing.
+                        for e in path:
+                            node = self.session.nodes[e.src]
+                            self.session.transmit(sock, node, e, self.target)
+
+                        # now send the current node we are fuzzing.
+                        self.session.transmit(sock, self.session.fuzz_node, edge, self.target)
+
+                        # if we reach this point the send was successful for break out of the while(1).
+                        break
+                        """
+                        except:
+
+                            # close the socket.
+                            sock.close()
+
+                            self.log("failed connecting to %s:%d" % (self.target.host, self.target.port))
+
+                            self.log("restarting target and trying again")
+                            self.session.restart_target(self.target)
+                        """
+
+                    # if the user registered a post-send function, pass it the sock and let it do the deed.
+                    # we do this outside the try/except loop because if our fuzz causes a crash then the post_send()
+                    # will likely fail and we don't want to sit in an endless loop.
+                    self.session.post_send(sock)
+
+                    # done with the socket.
+                    sock.close()
+
+                    # delay in between test cases.
+                    self.log("sleeping for %f seconds" % self.session.sleep_time, 5)
+                    time.sleep(self.session.sleep_time)
+
+                    # poll the PED-RPC endpoints (netmon, procmon etc...) for the target.
+                    self.session.poll_pedrpc(self.target)
+
+                    # serialize the current session state to disk.
+                    self.session.export_file()
+
+            # recursively fuzz the remainder of the nodes in the session graph.
+            self.session.fuzz(self.session.fuzz_node, path)
+
+        # finished with the last node on the path, pop it off the path stack.
+        if path:
+            path.pop()
+
+
+    def log (self, msg, level=1):
+        '''
+        Prefix the target IP address to the log message and bubble up to the session log routine.
+
+        @type  msg: String
+        @param msg: Log message
+        '''
+
+        msg = "[fuzz-%s] %s" % (self.getName(), msg)
+        self.session.log(msg, level)
+
+
+    def run (self):
+        '''
+        Main thread routine, called on thread.start(). Thread exits when this routine returns.
+        '''
+
+        self.fuzz()
+
+
+########################################################################################################################
 class target:
     '''
     Target descriptor container.
@@ -301,131 +458,14 @@ class session (pgraph.graph):
 
 
     ####################################################################################################################
-    def fuzz (self, this_node=None, path=[]):
+    def fuzz (self):
         '''
-        Call this routine to get the ball rolling. No arguments are necessary as they are both utilized internally
-        during the recursive traversal of the session graph.
-
-        @type  this_node: request (node)
-        @param this_node: (Optional, def=None) Current node that is being fuzzed.
-        @type  path:      List
-        @param path:      (Optional, def=[]) Nodes along the path to the current one being fuzzed.
+        Call this routine to get the ball rolling.
         '''
 
-        # if no node is specified, then we start from the root node and initialize the session.
-        if not this_node:
-            this_node = self.root
-
-            try:    self.server_init()
-            except: return
-
-        # XXX - TODO - complete parallel fuzzing, will likely have to thread out each target
-        target = self.targets[0]
-
-        # step through every edge from the current node.
-        for edge in self.edges_from(this_node.id):
-            # the destination node is the one actually being fuzzed.
-            self.fuzz_node = self.nodes[edge.dst]
-            num_mutations  = self.fuzz_node.num_mutations()
-
-            # keep track of the path as we fuzz through it, don't count the root node.
-            # we keep track of edges as opposed to nodes because if there is more then one path through a set of
-            # given nodes we don't want any ambiguity.
-            if edge.src != self.root.id:
-                path.append(edge)
-
-            current_path  = " -> ".join([self.nodes[e.src].name for e in path])
-            current_path += " -> %s" % self.fuzz_node.name
-
-            self.log("current fuzz path: %s" % current_path, 2)
-            self.log("fuzzed %d of %d total cases" % (self.total_mutant_index, self.total_num_mutations), 2)
-
-            done_with_fuzz_node = False
-            crash_count         = 0
-
-            # loop through all possible mutations of the fuzz node.
-            while not done_with_fuzz_node:
-                # if we need to pause, do so.
-                self.pause()
-
-                # if we have exhausted the mutations of the fuzz node, break out of the while(1).
-                # note: when mutate() returns False, the node has been reverted to the default (valid) state.
-                if not self.fuzz_node.mutate():
-                    self.log("all possible mutations for current fuzz node exhausted", 2)
-                    done_with_fuzz_node = True
-
-                # make a record in the session that a mutation was made.
-                self.total_mutant_index += 1
-
-                # if we've hit the restart interval, restart the target.
-                if self.restart_interval and self.total_mutant_index % self.restart_interval == 0:
-                    self.log("restart interval of %d reached" % self.restart_interval)
-                    self.restart_target(target)
-
-                # if we don't need to skip the current test case.
-                if self.total_mutant_index > self.skip:
-                    self.log("fuzzing %d of %d" % (self.fuzz_node.mutant_index, num_mutations), 2)
-
-                    # attempt to complete a fuzz transmission. keep trying until we are successful, whenever a failure
-                    # occurs, restart the target.
-                    while 1:
-                        try:
-                            # instruct the debugger/sniffer that we are about to send a new fuzz.
-                            if target.procmon: target.procmon.pre_send(self.total_mutant_index)
-                            if target.netmon:  target.netmon.pre_send(self.total_mutant_index)
-
-                            # establish a connection to the target.
-                            sock = socket.socket(socket.AF_INET, self.proto)
-                            sock.settimeout(self.timeout)
-                            sock.connect((target.host, target.port))
-
-                            # if the user registered a pre-send function, pass it the sock and let it do the deed.
-                            self.pre_send(sock)
-
-                            # send out valid requests for each node in the current path up to the node we are fuzzing.
-                            for e in path:
-                                node = self.nodes[e.src]
-                                self.transmit(sock, node, e, target)
-
-                            # now send the current node we are fuzzing.
-                            self.transmit(sock, self.fuzz_node, edge, target)
-
-                            # if we reach this point the send was successful for break out of the while(1).
-                            break
-                        except:
-
-                            # close the socket.
-                            sock.close()
-
-                            self.log("failed connecting to %s:%d" % (target.host, target.port))
-
-                            self.log("restarting target and trying again")
-                            self.restart_target(target)
-
-                    # if the user registered a post-send function, pass it the sock and let it do the deed.
-                    # we do this outside the try/except loop because if our fuzz causes a crash then the post_send()
-                    # will likely fail and we don't want to sit in an endless loop.
-                    self.post_send(sock)
-
-                    # done with the socket.
-                    sock.close()
-
-                    # delay in between test cases.
-                    self.log("sleeping for %f seconds" % self.sleep_time, 5)
-                    time.sleep(self.sleep_time)
-
-                    # poll the PED-RPC endpoints (netmon, procmon etc...) for the target.
-                    self.poll_pedrpc(target)
-
-                    # serialize the current session state to disk.
-                    self.export_file()
-
-            # recursively fuzz the remainder of the nodes in the session graph.
-            self.fuzz(self.fuzz_node, path)
-
-        # finished with the last node on the path, pop it off the path stack.
-        if path:
-            path.pop()
+        for target in self.targets:
+            fuzz_thread = parrallel_fuzz(self, target)
+            fuzz_thread.start()
 
 
     ####################################################################################################################
