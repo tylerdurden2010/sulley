@@ -491,6 +491,17 @@ class string (base_primitive):
             s = s[:len(s)/2] + "\x00" + s[len(s)/2:]
             self.fuzz_library.append(s)
 
+        # if the optional file '.fuzz_strings' is found, parse each line as a new entry for the fuzz library.
+        try:
+            fh = open(".fuzz_strings", "r")
+
+            for fuzz_string in fh.readlines():
+                self.fuzz_library.append(fuzz_string.rstrip("\r\n"))
+
+            fh.close()
+        except:
+            pass
+
         # truncate fuzz library items to user-supplied length and pad, removing duplicates.
         unique_mutants = []
         if self.size != -1:
@@ -605,6 +616,20 @@ class bit_field (base_primitive):
             self.add_integer_boundaries(self.max_num / 16)
             self.add_integer_boundaries(self.max_num / 32)
             self.add_integer_boundaries(self.max_num)
+
+        # if the optional file '.fuzz_ints' is found, parse each line as a new entry for the fuzz library.
+        try:
+            fh = open(".fuzz_ints", "r")
+
+            for fuzz_int in fh.readlines():
+                fuzz_int = long(fuzz_int, 16)
+
+                if fuzz_int <= self.max_num:
+                    self.fuzz_library.append(fuzz_int)
+
+            fh.close()
+        except:
+            pass
 
 
     def add_integer_boundaries (self, integer):
