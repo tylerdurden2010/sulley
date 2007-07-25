@@ -554,7 +554,7 @@ class session (pgraph.graph):
             # if the user-supplied crash threshold is reached, exhaust this node.
             if self.crashing_primitives[self.fuzz_node.mutant] >= self.crash_threshold:
                 # as long as we're not a group
-                if not isinstance(self.crashing_primitives[self.fuzz_node.mutant], group):
+                if not isinstance(self.crashing_primitives[self.fuzz_node.mutant], primitives.group):
                     self.log("crash threshold reached for this primitive, exhausting.")
                     num = self.fuzz_node.mutant.exhaust()
                     self.total_num_mutations += num
