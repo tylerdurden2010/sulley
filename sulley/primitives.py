@@ -25,7 +25,7 @@ class base_primitive (object):
         @return: The number of mutations to reach exhaustion
         '''
 
-        num = len(self.fuzz_library) - self.mutant_index
+        num = self.num_mutations() - self.mutant_index
 
         self.fuzz_complete  = True
         self.mutant_index   = self.num_mutations()
