@@ -101,7 +101,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
           
         # Grab snapshot name and log level if we're in interactive mode
         if interactive:
-            snap_name = '"' + raw_input("[*] Please enter the snapshot name: ") + '"'
+            snap_name = raw_input("[*] Please enter the snapshot name: ")
             log_level = raw_input("[*] Please enter the log level (default 1): ")
             
             if log_level:
