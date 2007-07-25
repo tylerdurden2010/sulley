@@ -3,6 +3,7 @@ from sulley import *
 def run ():
     signed_tests()
     string_tests()
+    fuzz_extension_tests()
 
     # clear out the requests.
     blocks.REQUESTS = {}
@@ -50,11 +51,10 @@ def signed_tests ():
     assert(req.names["qword_2"].render() == "9223372036854775807")
     assert(req.names["qword_3"].render() == "-9223372036854775808")
     assert(req.names["qword_4"].render() == "-1")
-    
-    
+
+
 ########################################################################################################################
 def string_tests ():
-
     s_initialize("STRING UNIT TEST 1")
     s_string("foo", size=200, name="sized_string")
 
@@ -66,5 +66,53 @@ def string_tests ():
     for i in xrange(0, 50):
         s_mutate()
         assert(len(req.names["sized_string"].render()) == 200)
-        
-  
+
+
+########################################################################################################################
+def fuzz_extension_tests ():
+    import shutil
+
+    # backup existing fuzz extension libraries.
+    try:
+        shutil.move(".fuzz_strings", ".fuzz_strings_backup")
+        shutil.move(".fuzz_ints",    ".fuzz_ints_backup")
+    except:
+        pass
+
+    # create extension libraries for unit test.
+    fh = open(".fuzz_strings", "w+")
+    fh.write("pedram\n")
+    fh.write("amini\n")
+    fh.close()
+
+    fh = open(".fuzz_ints", "w+")
+    fh.write("deadbeef\n")
+    fh.write("0xc0cac01a\n")
+    fh.close()
+
+    s_initialize("EXTENSION TEST")
+
+    s_string("foo", name="string")
+    s_int(200,      name="int")
+    s_char("A",     name="char")
+
+    req = s_get("EXTENSION TEST")
+
+    # these should be here now.
+    assert(0xdeadbeef in req.names["int"].fuzz_library)
+    assert(0xc0cac01a in req.names["int"].fuzz_library)
+
+    # these should not as a char is too small to store them.
+    assert(0xdeadbeef not in req.names["char"].fuzz_library)
+    assert(0xc0cac01a not in req.names["char"].fuzz_library)
+
+    # these should be here now.
+    assert("pedram" in req.names["string"].fuzz_library)
+    assert("amini" in req.names["string"].fuzz_library)
+
+    # restore existing fuzz extension libraries.
+    try:
+        shutil.move(".fuzz_strings_backup", ".fuzz_strings")
+        shutil.move(".fuzz_ints_backup",    ".fuzz_ints")
+    except:
+        pass
