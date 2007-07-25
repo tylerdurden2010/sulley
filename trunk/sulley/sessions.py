@@ -556,7 +556,9 @@ class session (pgraph.graph):
                 # as long as we're not a group
                 if not isinstance(self.crashing_primitives[self.fuzz_node.mutant], group):
                     self.log("crash threshold reached for this primitive, exhausting.")
-                    self.fuzz_node.mutant.exhaust()
+                    num = self.fuzz_node.mutant.exhaust()
+                    self.total_num_mutations += num
+                    self.total_mutant_index = 0
 
             # print crash synopsis
             self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
