@@ -496,7 +496,10 @@ class string (base_primitive):
             fh = open(".fuzz_strings", "r")
 
             for fuzz_string in fh.readlines():
-                self.fuzz_library.append(fuzz_string.rstrip("\r\n"))
+                fuzz_string = fuzz_string.rstrip("\r\n")
+
+                if fuzz_string != "":
+                    self.fuzz_library.append(fuzz_string)
 
             fh.close()
         except:
@@ -622,7 +625,11 @@ class bit_field (base_primitive):
             fh = open(".fuzz_ints", "r")
 
             for fuzz_int in fh.readlines():
-                fuzz_int = long(fuzz_int, 16)
+                # convert the line into an integer, continue on failure.
+                try:
+                    fuzz_int = long(fuzz_int, 16)
+                except:
+                    continue
 
                 if fuzz_int <= self.max_num:
                     self.fuzz_library.append(fuzz_int)
