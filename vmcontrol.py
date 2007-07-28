@@ -11,19 +11,20 @@ try:
 except:
     if os.name == "nt":
         print "[!] Failed to import win32api/win32com modules, please install these! Bailing..."
-        sys.exit(1) 
-        
+        sys.exit(1)
+
 
 from sulley import pedrpc
 
 PORT  = 26003
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
-USAGE = "USAGE: vmcontrol.py"                                  \
-        "\n    <-x|--vmx FILENAME>    path to VMX to control"  \
-        "\n    <-r|--vmrun FILENAME>  path to vmrun.exe"       \
-        "\n    [-s|--snapshot NAME>   set the snapshot name"   \
+USAGE = "USAGE: vmcontrol.py"                                                             \
+        "\n    <-x|--vmx FILENAME>    path to VMX to control"                             \
+        "\n    <-r|--vmrun FILENAME>  path to vmrun.exe"                                  \
+        "\n    [-s|--snapshot NAME>   set the snapshot name"                              \
         "\n    [-l|--log_level LEVEL] log level (default 1), increase for more verbosity" \
-        "\n    [-I|--interactive]     Interactive mode, prompts for input values"
+        "\n    [-i|--interactive]     Interactive mode, prompts for input values"         \
+        "\n    [--port PORT]          TCP port to bind this agent to"
 
 
 ########################################################################################################################
@@ -51,12 +52,12 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
         self.host        = host
         self.port        = port
-        
+
         self.interactive = interactive
-        
+
         if interactive:
             print "[*] Entering interactive mode..."
-            
+
             # get vmrun path
             try:
                 while 1:
@@ -73,7 +74,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
             except:
                 print "[!] Error while trying to find vmrun.exe. Try again without -I."
                 sys.exit(1)
-                
+
             # get vmx path
             try:
                 while 1:
@@ -81,7 +82,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
                     pidl, disp, imglist = shell.SHBrowseForFolder(0, None, "Please browse to the folder containing the .vmx file:")
                     fullpath = shell.SHGetPathFromIDList(pidl)
                     file_list = os.listdir(fullpath)
-                    
+
                     exists = False
                     for file in file_list:
                         idx = file.find(".vmx")
@@ -89,7 +90,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
                             exists = True
                             vmx = fullpath + "\\" + file
                             print "[*] Using %s" % vmx
-                
+
                     if exists:
                         break
                     else:
@@ -98,17 +99,17 @@ class vmcontrol_pedrpc_server (pedrpc.server):
                 raise
                 print "[!] Error while trying to find the .vmx file. Try again without -I."
                 sys.exit(1)
-          
+
         # Grab snapshot name and log level if we're in interactive mode
         if interactive:
             snap_name = raw_input("[*] Please enter the snapshot name: ")
             log_level = raw_input("[*] Please enter the log level (default 1): ")
-            
+
             if log_level:
                 log_level = int(log_level)
             else:
                 log_level = 1
-         
+
         # if we're on windows, get the DOS path names
         if os.name == "nt":
             self.vmrun       = GetShortPathName(r"%s" % vmrun)
@@ -116,7 +117,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
         else:
             self.vmrun = vmrun
             self.vmx   = vmx
-            
+
         self.snap_name   = snap_name
         self.log_level   = log_level
         self.interactive = interactive
@@ -304,7 +305,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 if __name__ == "__main__":
     # parse command line options.
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "x:r:s:l:I", ["vmx=", "vmrun=", "snapshot=", "log_level=", "interactive"])
+        opts, args = getopt.getopt(sys.argv[1:], "x:r:s:l:i", ["vmx=", "vmrun=", "snapshot=", "log_level=", "interactive", "port="])
     except getopt.GetoptError:
         ERR(USAGE)
 
@@ -315,11 +316,12 @@ if __name__ == "__main__":
     interactive = False
 
     for opt, arg in opts:
-        if opt in ("-x", "--vmx"):         vmx       = arg
-        if opt in ("-r", "--vmrun"):       vmrun     = arg
-        if opt in ("-s", "--snapshot"):    snap_name = arg
-        if opt in ("-l", "--log_level"):   log_level = int(arg)
-        if opt in ("-I", "--interactive"): interactive = True
+        if opt in ("-x", "--vmx"):         vmx         = arg
+        if opt in ("-r", "--vmrun"):       vmrun       = arg
+        if opt in ("-s", "--snapshot"):    snap_name   = arg
+        if opt in ("-l", "--log_level"):   log_level   = int(arg)
+        if opt in ("-i", "--interactive"): interactive = True
+        if opt in ("--port"):              PORT        = int(arg)
 
     # OS check
     if not os.name == "nt":

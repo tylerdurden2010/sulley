@@ -374,32 +374,32 @@ class session (pgraph.graph):
                             # instruct the debugger/sniffer that we are about to send a new fuzz.
                             if target.procmon: target.procmon.pre_send(self.total_mutant_index)
                             if target.netmon:  target.netmon.pre_send(self.total_mutant_index)
-                            
+
                             # establish a connection to the target.
                             sock = socket.socket(socket.AF_INET, self.proto)
                             sock.settimeout(self.timeout)
                             sock.connect((target.host, target.port))
-                            
+
                             # if the user registered a pre-send function, pass it the sock and let it do the deed.
                             self.pre_send(sock)
-                            
+
                             # send out valid requests for each node in the current path up to the node we are fuzzing.
                             for e in path:
                                 node = self.nodes[e.src]
                                 self.transmit(sock, node, e, target)
-                            
+
                             # now send the current node we are fuzzing.
                             self.transmit(sock, self.fuzz_node, edge, target)
-                            
+
                             # if we reach this point the send was successful for break out of the while(1).
                             break
                         except:
-                        
+
                             # close the socket.
                             sock.close()
-                        
+
                             self.log("failed connecting to %s:%d" % (target.host, target.port))
-                        
+
                             self.log("restarting target and trying again")
                             self.restart_target(target)
 
@@ -556,10 +556,9 @@ class session (pgraph.graph):
             if self.crashing_primitives[self.fuzz_node.mutant] >= self.crash_threshold:
                 # as long as we're not a group
                 if not isinstance(self.crashing_primitives[self.fuzz_node.mutant], primitives.group):
-                    self.log("crash threshold reached for this primitive, exhausting.")
-                    num = self.fuzz_node.mutant.exhaust()
-                    self.total_num_mutations += num
-                    self.total_mutant_index = 0
+                    skipped = self.fuzz_node.mutant.exhaust()
+                    self.log("crash threshold reached for this primitive, exhausting %d mutants." % skipped)
+                    self.total_mutant_index += skipped
 
             # print crash synopsis
             self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
@@ -703,7 +702,7 @@ class session (pgraph.graph):
             try:
                 self.last_recv = sock.recv(10000)
             except Exception, inst:
-                self.log("Nothing received on socket.", 5) 
+                self.log("Nothing received on socket.", 5)
                 self.last_recv = ""
         else:
             self.last_recv = ""

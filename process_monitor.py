@@ -21,7 +21,8 @@ USAGE = "USAGE: process_monitor.py"                                             
         "\n    <-c|--crash_bin FILENAME> filename to serialize crash bin class to"                 \
         "\n    [-p|--proc_name NAME]     process name to search for and attach to"                 \
         "\n    [-i|--ignore_pid PID]     ignore this PID when searching for the target process"    \
-        "\n    [-l|--log_level LEVEL]    log level (default 1), increase for more verbosity"
+        "\n    [-l|--log_level LEVEL]    log level (default 1), increase for more verbosity"       \
+        "\n    [--port PORT]             TCP port to bind this agent to"
 
 
 ########################################################################################################################
@@ -30,6 +31,7 @@ class debugger_thread (threading.Thread):
         '''
         Instantiate a new PyDbg instance and register user and access violation callbacks.
         '''
+
         threading.Thread.__init__(self)
 
         self.process_monitor  = process_monitor
@@ -359,7 +361,7 @@ class process_monitor_pedrpc_server (pedrpc.server):
 if __name__ == "__main__":
     # parse command line options.
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "c:i:l:p:", ["crash_bin=", "ignore_pid=", "log_level=", "proc_name="])
+        opts, args = getopt.getopt(sys.argv[1:], "c:i:l:p:", ["crash_bin=", "ignore_pid=", "log_level=", "proc_name=", "port="])
     except getopt.GetoptError:
         ERR(USAGE)
 
@@ -371,6 +373,7 @@ if __name__ == "__main__":
         if opt in ("-i", "--ignore_pid"):  ignore_pid = int(arg)
         if opt in ("-l", "--log_level"):   log_level  = int(arg)
         if opt in ("-p", "--proc_Name"):   proc_name  = arg
+        if opt in ("--port"):              PORT       = int(arg)
 
     if not crash_bin:
         ERR(USAGE)

@@ -20,6 +20,7 @@ USAGE = "USAGE: network_monitor.py"                                             
         "\n    [-f|--filter PCAP FILTER] BPF filter string"                                        \
         "\n    [-p|--log_path PATH]      log directory to store pcaps to"                          \
         "\n    [-l|--log_level LEVEL]    log level (default 1), increase for more verbosity"       \
+        "\n    [--port PORT]             TCP port to bind this agent to"                           \
         "\n\nNetwork Device List:\n"
 
 # add the device list to the usage string.
@@ -233,7 +234,7 @@ class network_monitor_pedrpc_server (pedrpc.server):
 if __name__ == "__main__":
     # parse command line options.
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "d:f:p:l:", ["device=", "filter=", "log_path=", "log_level="])
+        opts, args = getopt.getopt(sys.argv[1:], "d:f:p:l:", ["device=", "filter=", "log_path=", "log_level=", "port="])
     except getopt.GetoptError:
         ERR(USAGE)
 
@@ -247,6 +248,7 @@ if __name__ == "__main__":
         if opt in ("-f", "--filter"):     filter    = arg
         if opt in ("-p", "--log_path"):   log_path  = arg
         if opt in ("-l", "--log_level"):  log_level = int(arg)
+        if opt in ("--port"):             PORT      = int(arg)
 
     if not device:
         ERR(USAGE)
