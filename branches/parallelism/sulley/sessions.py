@@ -16,10 +16,10 @@ import sex
 class parrallel_fuzz (threading.Thread):
     def __init__ (self, session, target):
         threading.Thread.__init__(self)
-        
+
         self.session = session
         self.target  = target
-        
+
         self.setName(self.target.host)
 
 
@@ -88,30 +88,29 @@ class parrallel_fuzz (threading.Thread):
                     # attempt to complete a fuzz transmission. keep trying until we are successful, whenever a failure
                     # occurs, restart the target.
                     while 1:
-                        #try:
-                        # instruct the debugger/sniffer that we are about to send a new fuzz.
-                        if self.target.procmon: self.target.procmon.pre_send(self.session.total_mutant_index)
-                        if self.target.netmon:  self.target.netmon.pre_send(self.session.total_mutant_index)
+                        try:
+                            # instruct the debugger/sniffer that we are about to send a new fuzz.
+                            if self.target.procmon: self.target.procmon.pre_send(self.session.total_mutant_index)
+                            if self.target.netmon:  self.target.netmon.pre_send(self.session.total_mutant_index)
 
-                        # establish a connection to the target.
-                        sock = socket.socket(socket.AF_INET, self.session.proto)
-                        sock.settimeout(self.session.timeout)
-                        sock.connect((self.target.host, self.target.port))
+                            # establish a connection to the target.
+                            sock = socket.socket(socket.AF_INET, self.session.proto)
+                            sock.settimeout(self.session.timeout)
+                            sock.connect((self.target.host, self.target.port))
 
-                        # if the user registered a pre-send function, pass it the sock and let it do the deed.
-                        self.session.pre_send(sock)
+                            # if the user registered a pre-send function, pass it the sock and let it do the deed.
+                            self.session.pre_send(sock)
 
-                        # send out valid requests for each node in the current path up to the node we are fuzzing.
-                        for e in path:
-                            node = self.session.nodes[e.src]
-                            self.session.transmit(sock, node, e, self.target)
+                            # send out valid requests for each node in the current path up to the node we are fuzzing.
+                            for e in path:
+                                node = self.session.nodes[e.src]
+                                self.session.transmit(sock, node, e, self.target)
 
-                        # now send the current node we are fuzzing.
-                        self.session.transmit(sock, self.session.fuzz_node, edge, self.target)
+                            # now send the current node we are fuzzing.
+                            self.session.transmit(sock, self.session.fuzz_node, edge, self.target)
 
-                        # if we reach this point the send was successful for break out of the while(1).
-                        break
-                        """
+                            # if we reach this point the send was successful for break out of the while(1).
+                            break
                         except:
 
                             # close the socket.
@@ -121,7 +120,6 @@ class parrallel_fuzz (threading.Thread):
 
                             self.log("restarting target and trying again")
                             self.session.restart_target(self.target)
-                        """
 
                     # if the user registered a post-send function, pass it the sock and let it do the deed.
                     # we do this outside the try/except loop because if our fuzz causes a crash then the post_send()
