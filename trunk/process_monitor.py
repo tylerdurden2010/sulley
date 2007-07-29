@@ -13,7 +13,10 @@ sys.path.append(r"..\..\paimei")
 from pydbg         import *
 from pydbg.defines import *
 
-import utils
+try:
+    import utils
+except:
+    pass # paimei not set up
 
 PORT  = 26002
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
@@ -373,7 +376,7 @@ if __name__ == "__main__":
         if opt in ("-i", "--ignore_pid"):  ignore_pid = int(arg)
         if opt in ("-l", "--log_level"):   log_level  = int(arg)
         if opt in ("-p", "--proc_Name"):   proc_name  = arg
-        if opt in ("--port"):              PORT       = int(arg)
+        if opt in ("-P", "--port"):        PORT       = int(arg)
 
     if not crash_bin:
         ERR(USAGE)
@@ -383,4 +386,5 @@ if __name__ == "__main__":
         servlet = process_monitor_pedrpc_server("0.0.0.0", PORT, crash_bin, proc_name, ignore_pid, log_level)
         servlet.serve_forever()
     except:
+        print "Error starting RPC server!"
         pass
