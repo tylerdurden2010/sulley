@@ -13,10 +13,7 @@ sys.path.append(r"..\..\paimei")
 from pydbg         import *
 from pydbg.defines import *
 
-try:
-    import utils
-except:
-    pass # paimei not set up
+import utils
 
 PORT  = 26002
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
@@ -170,6 +167,7 @@ class process_monitor_pedrpc_server (pedrpc.server):
         self.test_number      = None
         self.debugger_thread  = None
         self.crash_bin        = utils.crash_binning.crash_binning()
+            
         self.last_synopsis    = ""
 
         if not os.access(os.path.dirname(self.crash_filename), os.X_OK):
