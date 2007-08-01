@@ -594,6 +594,9 @@ class repeat:
         @return: True on success, False otherwise.
         '''
 
+        # render the contents of the block we are repeating.
+        self.request.names[self.block_name].render()
+
         # if the target block for this sizer is not closed, raise an exception.
         if self.block_name not in self.request.closed_blocks:
             raise sex.error("CAN NOT APPLY REPEATER TO UNCLOSED BLOCK: %s" % self.block_name)
