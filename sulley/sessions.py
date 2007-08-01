@@ -315,6 +315,13 @@ class session (pgraph.graph):
 
         # if no node is specified, then we start from the root node and initialize the session.
         if not this_node:
+            # we can't fuzz if we don't have at least one target and one request.
+            if not self.targets:
+                raise sex.error("NO TARGETS SPECIFIED IN SESSION")
+
+            if not self.edges_from(self.root.id):
+                raise sex.error("NO REQUESTS SPECIFIED IN SESSION")
+
             this_node = self.root
 
             try:    self.server_init()
@@ -354,6 +361,7 @@ class session (pgraph.graph):
                 if not self.fuzz_node.mutate():
                     self.log("all possible mutations for current fuzz node exhausted", 2)
                     done_with_fuzz_node = True
+                    continue
 
                 # make a record in the session that a mutation was made.
                 self.total_mutant_index += 1
