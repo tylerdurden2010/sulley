@@ -704,6 +704,7 @@ class size:
         self.fuzzable      = fuzzable
         self.name          = name
 
+        self.s_type        = "size"   # for ease of object identification
         self.bit_field     = primitives.bit_field(0, self.length*8, endian=self.endian, format=self.format, signed=self.signed)
         self.rendered      = ""
         self.fuzz_complete = self.bit_field.fuzz_complete
