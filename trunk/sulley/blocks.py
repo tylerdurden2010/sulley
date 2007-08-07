@@ -716,6 +716,23 @@ class size:
         if self.math == None:
             self.math = lambda (x): x
 
+    
+    def exhaust (self):
+        '''
+        Exhaust the possible mutations for this primitive.
+
+        @rtype:  Integer
+        @return: The number of mutations to reach exhaustion
+        '''
+
+        num = self.num_mutations() - self.mutant_index
+
+        self.fuzz_complete  = True
+        self.mutant_index   = self.num_mutations()
+        self.value          = self.original_value
+
+        return num
+
 
     def mutate (self):
         '''
