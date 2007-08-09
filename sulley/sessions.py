@@ -401,8 +401,13 @@ class session (pgraph.graph):
 
                             # if we reach this point the send was successful for break out of the while(1).
                             break
-                        except:
 
+                        except sex.error, e:
+                            sys.stderr.write("CAUGHT SULLEY EXCEPTION\n")
+                            sys.stderr.write("\t" + e.__str__() + "\n")
+                            sys.exit(1)
+
+                        except:
                             # close the socket.
                             sock.close()
 
@@ -709,7 +714,7 @@ class session (pgraph.graph):
             # XXX - might have a need to increase this at some point. (possibly make it a class parameter)
             try:
                 self.last_recv = sock.recv(10000)
-            except Exception, inst:
+            except Exception, e:
                 self.log("Nothing received on socket.", 5)
                 self.last_recv = ""
         else:
