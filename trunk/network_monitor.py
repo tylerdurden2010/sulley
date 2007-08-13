@@ -18,7 +18,7 @@ ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
 USAGE = "USAGE: network_monitor.py"                                                                \
         "\n    <-d|--device DEVICE #>    device to sniff on (see list below)"                      \
         "\n    [-f|--filter PCAP FILTER] BPF filter string"                                        \
-        "\n    [-p|--log_path PATH]      log directory to store pcaps to"                          \
+        "\n    [-P|--log_path PATH]      log directory to store pcaps to"                          \
         "\n    [-l|--log_level LEVEL]    log level (default 1), increase for more verbosity"       \
         "\n    [--port PORT]             TCP port to bind this agent to"                           \
         "\n\nNetwork Device List:\n"
@@ -234,7 +234,7 @@ class network_monitor_pedrpc_server (pedrpc.server):
 if __name__ == "__main__":
     # parse command line options.
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "d:f:p:l:", ["device=", "filter=", "log_path=", "log_level=", "port="])
+        opts, args = getopt.getopt(sys.argv[1:], "d:f:P:l:", ["device=", "filter=", "log_path=", "log_level=", "port="])
     except getopt.GetoptError:
         ERR(USAGE)
 
@@ -246,7 +246,7 @@ if __name__ == "__main__":
     for opt, arg in opts:
         if opt in ("-d", "--device"):     device    = IFS[int(arg)]
         if opt in ("-f", "--filter"):     filter    = arg
-        if opt in ("-p", "--log_path"):   log_path  = arg
+        if opt in ("-P", "--log_path"):   log_path  = arg
         if opt in ("-l", "--log_level"):  log_level = int(arg)
         if opt in ("--port"):             PORT      = int(arg)
 
