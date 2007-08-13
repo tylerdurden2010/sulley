@@ -584,12 +584,12 @@ class session (pgraph.graph):
     ####################################################################################################################
     def post_send (self, sock):
         '''
-        Overload or replace this routine to specify actions to run prior to each fuzz request. The order of events is
+        Overload or replace this routine to specify actions to run after to each fuzz request. The order of events is
         as follows::
 
             pre_send() - req - callback ... req - callback - post_send()
 
-        When fuzzing RPC for example, register this method to establish the RPC bind.
+        When fuzzing RPC for example, register this method to tear down the RPC request.
 
         @see: pre_send()
 
@@ -604,12 +604,12 @@ class session (pgraph.graph):
     ####################################################################################################################
     def pre_send (self, sock):
         '''
-        Overload or replace this routine to specify actions to run affter to each fuzz request. The order of events is
+        Overload or replace this routine to specify actions to run prior to each fuzz request. The order of events is
         as follows::
 
             pre_send() - req - callback ... req - callback - post_send()
 
-        When fuzzing RPC for example, register this method to tear down the RPC request.
+        When fuzzing RPC for example, register this method to establish the RPC bind.
 
         @see: pre_send()
 
