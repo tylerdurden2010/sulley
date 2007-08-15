@@ -289,6 +289,8 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
 
     def is_target_running (self):
+        time.sleep(10) # sometimes vmrun reports that the VM is up while it's still reverting
+        
         vmx_trimmed = "\\".join(self.vmx.split("\\")[:-1])
 
         return vmx_trimmed.lower() in self.list().lower()
