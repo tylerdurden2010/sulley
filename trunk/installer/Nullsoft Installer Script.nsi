@@ -75,19 +75,16 @@ Section "Python" SEC02
 SectionEnd
 
 Section "Pcapy" SEC03
-  SetOutPath "C:\Python\Lib\site-packages\"
   SetOverwrite ifnewer
   ExecWait  "$INSTDIR\install_files\pcapy.exe"
 SectionEnd
 
 Section "WinPCAP" SEC04
-  SetOutPath "$PROGRAMFILES\WinPCAP"
   SetOverwrite ifnewer
   ExecWait  "$INSTDIR\install_files\winpcap.exe"
 SectionEnd
 
 Section "ctypes" SEC05
-  SetOutPath "C:\Python\Lib\site-packages\"
   SetOverwrite ifnewer
   ExecWait "$INSTDIR\install_files\ctypes.exe"
 SectionEnd
