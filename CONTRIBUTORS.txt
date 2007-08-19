@@ -14,6 +14,3 @@ Peter Silberman <peter.silberman@gmail.com>
     - General ideas, beta testing and morale support.
     - Upcoming file fuzzing capability
     - Bug reports
-
-Mozik Zeiss <zeissmosik@gmail.com>
-    - Bug reports
