@@ -3,6 +3,7 @@ import sys
 import zlib
 import time
 import socket
+import httplib
 import cPickle
 import threading
 import BaseHTTPServer
@@ -119,7 +120,7 @@ class session (pgraph.graph):
         @type  log_level:        Integer
         @kwarg log_level:        (Optional, def=2) Set the log level, higher number == more log messages
         @type  proto:            String
-        @kwarg proto:            (Optional, def="tcp") Communication protocol
+        @kwarg proto:            (Optional, def="tcp") Communication protocol ("tcp", "udp", "ssl")
         @type  timeout:          Float
         @kwarg timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
         @type  restart_interval: Integer
@@ -135,7 +136,8 @@ class session (pgraph.graph):
         self.skip                = skip
         self.sleep_time          = sleep_time
         self.log_level           = log_level
-        self.proto               = proto
+        self.proto               = proto.lower()
+        self.ssl                 = False
         self.restart_interval    = restart_interval
         self.timeout             = timeout
         self.web_port            = web_port
@@ -152,8 +154,14 @@ class session (pgraph.graph):
 
         if self.proto == "tcp":
             self.proto = socket.SOCK_STREAM
+
+        elif self.proto == "ssl":
+            self.proto = socket.SOCK_STREAM
+            self.ssl   = True
+
         elif self.proto == "udp":
             self.proto = socket.SOCK_DGRAM
+
         else:
             raise sex.error("INVALID PROTOCOL SPECIFIED: %s" % self.proto)
 
@@ -387,6 +395,11 @@ class session (pgraph.graph):
                             sock = socket.socket(socket.AF_INET, self.proto)
                             sock.settimeout(self.timeout)
                             sock.connect((target.host, target.port))
+
+                            # if SSL is requested, then enable it.
+                            if self.ssl:
+                                ssl  = socket.ssl(sock)
+                                sock = httplib.FakeSocket(sock, ssl)
 
                             # if the user registered a pre-send function, pass it the sock and let it do the deed.
                             self.pre_send(sock)
