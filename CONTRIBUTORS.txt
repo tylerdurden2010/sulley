@@ -5,12 +5,13 @@ Charlie Miller <charlesamiller@hotmail.com>
 
 Gerald Eisenhaur <gerry.eisenhaur@gmail.com>
     - General ideas, beta testing and morale support.
-    - Numerous bug reports
+    - Numerous bug reports.
+    - SSL support to fuzz session.
 
 Jared DeMott <jdemott@appliedsec.com>
     - General ideas, beta testing and morale support.
 
 Peter Silberman <peter.silberman@gmail.com>
     - General ideas, beta testing and morale support.
-    - Upcoming file fuzzing capability
-    - Bug reports
+    - Upcoming file fuzzing capability.
+    - Bug reports.
