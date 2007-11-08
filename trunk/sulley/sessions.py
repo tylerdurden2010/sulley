@@ -577,7 +577,11 @@ class session (pgraph.graph):
 
             msg += "type: %s, default value: %s" % (self.fuzz_node.mutant.s_type, self.fuzz_node.mutant.original_value)
             self.log(msg)
-
+            
+            # print crash synopsis
+            self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
+            self.log(self.procmon_results[self.total_mutant_index].split("\n")[0], 2)
+            
             # if the user-supplied crash threshold is reached, exhaust this node.
             if self.crashing_primitives[self.fuzz_node.mutant] >= self.crash_threshold:
                 # as long as we're not a group
@@ -585,10 +589,6 @@ class session (pgraph.graph):
                     skipped = self.fuzz_node.mutant.exhaust()
                     self.log("crash threshold reached for this primitive, exhausting %d mutants." % skipped)
                     self.total_mutant_index += skipped
-
-            # print crash synopsis
-            self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
-            self.log(self.procmon_results[self.total_mutant_index].split("\n")[0], 2)
 
             # start the target back up.
             self.restart_target(target, stop_first=False)
