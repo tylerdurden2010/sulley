@@ -1,5 +1,6 @@
 #!c:\\python\\python.exe
 
+import subprocess
 import threading
 import getopt
 import time
@@ -312,7 +313,7 @@ class process_monitor_pedrpc_server (pedrpc.server):
         self.log("starting target process")
 
         for command in self.start_commands:
-            os.system(command)
+            subprocess.Popen(command)
 
         self.log("done. target up and running, giving it 5 seconds to settle in.")
         time.sleep(5)
