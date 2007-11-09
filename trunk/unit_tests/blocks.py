@@ -30,14 +30,14 @@ def groups_and_num_test_cases ():
 
     # count how many mutations we get per primitive type.
     req1 = s_get("UNIT TEST 1")
-    print "PRIMITIVE MUTATION COUNTS:"
-    print "\tdelim:  %d" % req1.names["delim"].num_mutations()
-    print "\tstring: %d" % req1.names["string"].num_mutations()
-    print "\tbyte:   %d" % req1.names["byte"].num_mutations()
-    print "\tword:   %d" % req1.names["word"].num_mutations()
-    print "\tdword:  %d" % req1.names["dword"].num_mutations()
-    print "\tqword:  %d" % req1.names["qword"].num_mutations()
-    print "\tsizer:  %d" % req1.names["sizer"].num_mutations()
+    print "PRIMITIVE MUTATION COUNTS (SIZES):"
+    print "\tdelim:  %d\t(%s)" % (req1.names["delim"].num_mutations(),  sum(map(len, req1.names["delim"].fuzz_library)))
+    print "\tstring: %d\t(%s)" % (req1.names["string"].num_mutations(), sum(map(len, req1.names["string"].fuzz_library)))
+    print "\tbyte:   %d"      %  req1.names["byte"].num_mutations()
+    print "\tword:   %d"      %  req1.names["word"].num_mutations()
+    print "\tdword:  %d"      %  req1.names["dword"].num_mutations()
+    print "\tqword:  %d"      %  req1.names["qword"].num_mutations()
+    print "\tsizer:  %d"      %  req1.names["sizer"].num_mutations()
 
     # we specify the number of mutations in a random field, so ensure that matches.
     assert(req1.names["random"].num_mutations() == 100)
@@ -149,6 +149,7 @@ def return_current_mutant ():
 
     for i in xrange(1, num_str_mutations + num_int_mutations - 10 + 1):
         req1.mutate()
+
     assert(req1.mutant.name == "vagina")
     req1.reset()
 
@@ -170,32 +171,32 @@ def return_current_mutant ():
 
 ########################################################################################################################
 def exhaustion ():
-    
+
     s_initialize("EXHAUSTION 1")
-    
+
     s_string("just wont eat", name="VIP")
     s_dword(0x4141, name="eggos_rule")
     s_dword(0x4242, name="danny_glover_is_the_man")
-    
-    
+
+
     req1 = s_get("EXHAUSTION 1")
-    
+
     num_str_mutations = req1.names["VIP"].num_mutations()
-    
+
     # if we mutate string halfway, then exhaust, then mutate one time, we should be in the 2nd primitive
     for i in xrange(num_str_mutations/2):
         req1.mutate()
     req1.mutant.exhaust()
-    
+
     req1.mutate()
     assert(req1.mutant.name == "eggos_rule")
     req1.reset()
-    
+
     # if we mutate through the first primitive, then exhaust the 2nd, we should be in the 3rd
     for i in xrange(num_str_mutations + 2):
         req1.mutate()
     req1.mutant.exhaust()
-    
+
     req1.mutate()
     assert(req1.mutant.name == "danny_glover_is_the_man")
     req1.reset()
@@ -204,5 +205,4 @@ def exhaustion ():
     req1.mutant.exhaust()
     req1.mutant.exhaust()
     assert(req1.mutant.name == "danny_glover_is_the_man")
-    
-   
+
