@@ -364,10 +364,15 @@ class static (base_primitive):
 
 ########################################################################################################################
 class string (base_primitive):
+    # store fuzz_library as a class variable to avoid copying the ~70MB structure across each instantiated primitive.
+    fuzz_library = []
 
     def __init__ (self, value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, name=None):
         '''
-        Primitive that cycles through a library of "bad" strings.
+        Primitive that cycles through a library of "bad" strings. The class variable 'fuzz_library' contains a list of
+        smart fuzz values global across all instances. The 'this_library' variable contains fuzz values specific to
+        the instantiated primitive. This allows us to avoid copying the near ~70MB fuzz_library data structure across
+        each instantiated primitive.
 
         @type  value:    String
         @param value:    Default string value
@@ -394,10 +399,10 @@ class string (base_primitive):
         self.rendered      = ""        # rendered value
         self.fuzz_complete = False     # flag if this primitive has been completely fuzzed
         self.mutant_index  = 0         # current mutation number
-        self.fuzz_library  = \
+
+        # add this specific primitives repitition values to the unique fuzz library.
+        self.this_library = \
         [
-            # omission and repetition.
-            "",
             self.value * 2,
             self.value * 10,
             self.value * 100,
@@ -406,130 +411,119 @@ class string (base_primitive):
             self.value * 2   + "\xfe",
             self.value * 10  + "\xfe",
             self.value * 100 + "\xfe",
-
-            # strings ripped from spike (and some others I added)
-            "/.:/"  + "A"*5000 + "\x00\x00",
-            "/.../" + "A"*5000 + "\x00\x00",
-            "/.../.../.../.../.../.../.../.../.../.../",
-            "/../../../../../../../../../../../../etc/passwd",
-            "/../../../../../../../../../../../../boot.ini",
-            "..:..:..:..:..:..:..:..:..:..:..:..:..:",
-            "\\\\*",
-            "\\\\?\\",
-            "/\\" * 5000,
-            "/." * 5000,
-            "!@#$%%^#$%#$@#$%$$@#$%^^**(()",
-            "%01%02%03%04%0a%0d%0aADSF",
-            "%01%02%03@%04%0a%0d%0aADSF",
-            "/%00/",
-            "%00/",
-            "%00",
-            "%u0000",
-
-            # format strings.
-            "%n"     * 100,
-            "%n"     * 500,
-            "\"%n\"" * 500,
-            "%s"     * 100,
-            "%s"     * 500,
-            "\"%s\"" * 500,
-
-            # command injection.
-            "|touch /tmp/SULLEY",
-            ";touch /tmp/SULLEY;",
-            "|notepad",
-            ";notepad;",
-            "\nnotepad\n",
-
-            # SQL injection.
-            "1;SELECT%20*",
-            "'sqlattempt1",
-            "(sqlattempt2)",
-            "OR%201=1",
-
-            # some binary strings.
-            "\xde\xad\xbe\xef",
-            "\xde\xad\xbe\xef" * 10,
-            "\xde\xad\xbe\xef" * 100,
-            "\xde\xad\xbe\xef" * 1000,
-            "\xde\xad\xbe\xef" * 10000,
-            "\x00"             * 1000,
-
-            # miscellaneous.
-            "\r\n" * 100,
-            "<>" * 500,         # sendmail crackaddr (http://lsd-pl.net/other/sendmail.txt)
         ]
 
-        # add some long strings.
-        self.add_long_strings("A")
-        self.add_long_strings("B")
-        self.add_long_strings("1")
-        self.add_long_strings("2")
-        self.add_long_strings("3")
-        self.add_long_strings("<")
-        self.add_long_strings(">")
-        self.add_long_strings("'")
-        self.add_long_strings("\"")
-        self.add_long_strings("/")
-        self.add_long_strings("\\")
-        self.add_long_strings("?")
-        self.add_long_strings("=")
-        self.add_long_strings("a=")
-        self.add_long_strings("&")
-        self.add_long_strings(".")
-        self.add_long_strings(",")
-        self.add_long_strings("(")
-        self.add_long_strings(")")
-        self.add_long_strings("]")
-        self.add_long_strings("[")
-        self.add_long_strings("%")
-        self.add_long_strings("*")
-        self.add_long_strings("-")
-        self.add_long_strings("+")
-        self.add_long_strings("{")
-        self.add_long_strings("}")
-        self.add_long_strings("\x14")
-        self.add_long_strings("\xFE")   # expands to 4 characters under utf16
-        self.add_long_strings("\xFF")   # expands to 4 characters under utf16
+        # if the fuzz library has not yet been initialized, do so with all the global values.
+        if not self.fuzz_library:
+            self.fuzz_library  = \
+            [
+                # omission.
+                "",
 
-        # add some long strings with null bytes thrown in the middle of it.
-        for length in [128, 256, 1024, 2048, 4096, 32767, 0xFFFF]:
-            s = "B" * length
-            s = s[:len(s)/2] + "\x00" + s[len(s)/2:]
-            self.fuzz_library.append(s)
+                # strings ripped from spike (and some others I added)
+                "/.:/"  + "A"*5000 + "\x00\x00",
+                "/.../" + "A"*5000 + "\x00\x00",
+                "/.../.../.../.../.../.../.../.../.../.../",
+                "/../../../../../../../../../../../../etc/passwd",
+                "/../../../../../../../../../../../../boot.ini",
+                "..:..:..:..:..:..:..:..:..:..:..:..:..:",
+                "\\\\*",
+                "\\\\?\\",
+                "/\\" * 5000,
+                "/." * 5000,
+                "!@#$%%^#$%#$@#$%$$@#$%^^**(()",
+                "%01%02%03%04%0a%0d%0aADSF",
+                "%01%02%03@%04%0a%0d%0aADSF",
+                "/%00/",
+                "%00/",
+                "%00",
+                "%u0000",
 
-        # if the optional file '.fuzz_strings' is found, parse each line as a new entry for the fuzz library.
-        try:
-            fh = open(".fuzz_strings", "r")
+                # format strings.
+                "%n"     * 100,
+                "%n"     * 500,
+                "\"%n\"" * 500,
+                "%s"     * 100,
+                "%s"     * 500,
+                "\"%s\"" * 500,
 
-            for fuzz_string in fh.readlines():
-                fuzz_string = fuzz_string.rstrip("\r\n")
+                # command injection.
+                "|touch /tmp/SULLEY",
+                ";touch /tmp/SULLEY;",
+                "|notepad",
+                ";notepad;",
+                "\nnotepad\n",
 
-                if fuzz_string != "":
-                    self.fuzz_library.append(fuzz_string)
+                # SQL injection.
+                "1;SELECT%20*",
+                "'sqlattempt1",
+                "(sqlattempt2)",
+                "OR%201=1",
 
-            fh.close()
-        except:
-            pass
+                # some binary strings.
+                "\xde\xad\xbe\xef",
+                "\xde\xad\xbe\xef" * 10,
+                "\xde\xad\xbe\xef" * 100,
+                "\xde\xad\xbe\xef" * 1000,
+                "\xde\xad\xbe\xef" * 10000,
+                "\x00"             * 1000,
 
-        # truncate fuzz library items to user-supplied length and pad, removing duplicates.
-        unique_mutants = []
-        if self.size != -1:
-            for mutant in self.fuzz_library:
-                # truncate.
-                if len(mutant) > self.size:
-                    mutant = mutant[:self.size]
+                # miscellaneous.
+                "\r\n" * 100,
+                "<>" * 500,         # sendmail crackaddr (http://lsd-pl.net/other/sendmail.txt)
+            ]
 
-                # pad.
-                elif len(mutant) < self.size:
-                    mutant = mutant + self.padding * (self.size - len(mutant))
+            # add some long strings.
+            self.add_long_strings("A")
+            self.add_long_strings("B")
+            self.add_long_strings("1")
+            self.add_long_strings("2")
+            self.add_long_strings("3")
+            self.add_long_strings("<")
+            self.add_long_strings(">")
+            self.add_long_strings("'")
+            self.add_long_strings("\"")
+            self.add_long_strings("/")
+            self.add_long_strings("\\")
+            self.add_long_strings("?")
+            self.add_long_strings("=")
+            self.add_long_strings("a=")
+            self.add_long_strings("&")
+            self.add_long_strings(".")
+            self.add_long_strings(",")
+            self.add_long_strings("(")
+            self.add_long_strings(")")
+            self.add_long_strings("]")
+            self.add_long_strings("[")
+            self.add_long_strings("%")
+            self.add_long_strings("*")
+            self.add_long_strings("-")
+            self.add_long_strings("+")
+            self.add_long_strings("{")
+            self.add_long_strings("}")
+            self.add_long_strings("\x14")
+            self.add_long_strings("\xFE")   # expands to 4 characters under utf16
+            self.add_long_strings("\xFF")   # expands to 4 characters under utf16
 
-                # add to unique list.
-                if mutant not in unique_mutants:
-                    unique_mutants.append(mutant)
+            # add some long strings with null bytes thrown in the middle of it.
+            for length in [128, 256, 1024, 2048, 4096, 32767, 0xFFFF]:
+                s = "B" * length
+                s = s[:len(s)/2] + "\x00" + s[len(s)/2:]
+                self.fuzz_library.append(s)
 
-            # assign unique list as fuzz library.
-            self.fuzz_library = unique_mutants
+            # if the optional file '.fuzz_strings' is found, parse each line as a new entry for the fuzz library.
+            try:
+                fh = open(".fuzz_strings", "r")
+
+                for fuzz_string in fh.readlines():
+                    fuzz_string = fuzz_string.rstrip("\r\n")
+
+                    if fuzz_string != "":
+                        self.fuzz_library.append(fuzz_string)
+
+                fh.close()
+            except:
+                pass
 
 
     def add_long_strings (self, sequence):
@@ -547,6 +541,60 @@ class string (base_primitive):
 
             long_string = sequence * length
             self.fuzz_library.append(long_string)
+
+
+    def mutate (self):
+        '''
+        Mutate the primitive by stepping through the fuzz library extended with the "this" library, return False on
+        completion.
+
+        @rtype:  Boolean
+        @return: True on success, False otherwise.
+        '''
+
+        # loop through the fuzz library until a suitable match is found.
+        while 1:
+            # if we've ran out of mutations, raise the completion flag.
+            if self.mutant_index == self.num_mutations():
+                self.fuzz_complete = True
+
+            # if fuzzing was disabled or complete, and mutate() is called, ensure the original value is restored.
+            if not self.fuzzable or self.fuzz_complete:
+                self.value = self.original_value
+                return False
+
+            # update the current value from the fuzz library.
+            self.value = (self.fuzz_library + self.this_library)[self.mutant_index]
+
+            # increment the mutation count.
+            self.mutant_index += 1
+
+            # if the size parameter is disabled, break out of the loop right now.
+            if self.size == -1:
+                break
+
+            # ignore library items greather then user-supplied length.
+            # XXX - might want to make this smarter.
+            if len(self.value) > self.size:
+                continue
+
+            # pad undersized library items.
+            if len(self.value) < self.size:
+                self.value = self.value + self.padding * (self.size - len(self.value))
+                break
+
+        return True
+
+
+    def num_mutations (self):
+        '''
+        Calculate and return the total number of mutations for this individual primitive.
+
+        @rtype:  Integer
+        @return: Number of mutated forms this primitive can take
+        '''
+
+        return len(self.fuzz_library) + len(self.this_library)
 
 
     def render (self):

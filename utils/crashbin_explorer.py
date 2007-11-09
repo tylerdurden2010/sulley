@@ -2,7 +2,7 @@
 
 import getopt
 import sys
-sys.path.append(r"..\..\..\paimei")
+sys.path.append(r"../../../paimei")
 
 import utils
 import pgraph
