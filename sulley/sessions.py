@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 import zlib
@@ -577,11 +578,11 @@ class session (pgraph.graph):
 
             msg += "type: %s, default value: %s" % (self.fuzz_node.mutant.s_type, self.fuzz_node.mutant.original_value)
             self.log(msg)
-            
+
             # print crash synopsis
             self.procmon_results[self.total_mutant_index] = target.procmon.get_crash_synopsis()
             self.log(self.procmon_results[self.total_mutant_index].split("\n")[0], 2)
-            
+
             # if the user-supplied crash threshold is reached, exhaust this node.
             if self.crashing_primitives[self.fuzz_node.mutant] >= self.crash_threshold:
                 # as long as we're not a group
@@ -714,9 +715,15 @@ class session (pgraph.graph):
         # XXX - this logic does not prevent duplicate test cases, need to address this in the future.
         if self.proto == socket.SOCK_DGRAM:
             # max UDP packet size.
-            if len(data) > 65507:
-                self.log("Too much data for UDP, truncating to 65507 bytes")
-                data = data[:65507]
+            # XXX - anyone know how to determine this value smarter?
+            MAX_UDP = 65507
+
+            if os.name != "nt" and os.uname()[0] == "Darwin":
+                MAX_UDP = 9216
+
+            if len(data) > MAX_UDP:
+                self.log("Too much data for UDP, truncating to %d bytes" % MAX_UDP)
+                data = data[:MAX_UDP]
 
         try:
             sock.send(data)
