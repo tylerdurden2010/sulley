@@ -1,0 +1,8 @@
+#summary List of known issues.
+
+= Known Bugs =
+
+* In PedRPC.py line 54 the socket option setting will fail on some systems (like Ubuntu), change it to:
+{{{
+self.NOLINGER = struct.pack('ii', 1, 0)
+}}}
