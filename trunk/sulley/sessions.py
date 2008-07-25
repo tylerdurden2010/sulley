@@ -108,7 +108,7 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, session_filename=None, skip=0, sleep_time=1.0, log_level=2, proto="tcp", restart_interval=0, timeout=5.0, web_port=26000, crash_threshold=3):
+    def __init__ (self, session_filename=None, skip=0, sleep_time=1.0, log_level=2, proto="tcp", bind=None, restart_interval=0, timeout=5.0, web_port=26000, crash_threshold=3):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
@@ -122,6 +122,8 @@ class session (pgraph.graph):
         @kwarg log_level:        (Optional, def=2) Set the log level, higher number == more log messages
         @type  proto:            String
         @kwarg proto:            (Optional, def="tcp") Communication protocol ("tcp", "udp", "ssl")
+        @type  bind:             Tuple (host, port)
+        @kwarg bind:             (Optional, def=random) Socket bind address and port
         @type  timeout:          Float
         @kwarg timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
         @type  restart_interval: Integer
@@ -138,6 +140,7 @@ class session (pgraph.graph):
         self.sleep_time          = sleep_time
         self.log_level           = log_level
         self.proto               = proto.lower()
+        self.bind                = bind
         self.ssl                 = False
         self.restart_interval    = restart_interval
         self.timeout             = timeout
@@ -380,6 +383,17 @@ class session (pgraph.graph):
                     self.log("restart interval of %d reached" % self.restart_interval)
                     self.restart_target(target)
 
+                # exception error handling routine, print log message and restart target.
+                def error_handler (e, msg, target, sock=None):
+                    if sock:
+                        sock.close()
+
+                    msg += "\nException caught: %s" % repr(e)
+                    msg += "\nRestarting target and trying again"
+
+                    self.log(msg)
+                    self.restart_target(target)
+
                 # if we don't need to skip the current test case.
                 if self.total_mutant_index > self.skip:
                     self.log("fuzzing %d of %d" % (self.fuzz_node.mutant_index, num_mutations), 2)
@@ -387,53 +401,84 @@ class session (pgraph.graph):
                     # attempt to complete a fuzz transmission. keep trying until we are successful, whenever a failure
                     # occurs, restart the target.
                     while 1:
-                        try:
-                            # instruct the debugger/sniffer that we are about to send a new fuzz.
-                            if target.procmon: target.procmon.pre_send(self.total_mutant_index)
-                            if target.netmon:  target.netmon.pre_send(self.total_mutant_index)
+                        # instruct the debugger/sniffer that we are about to send a new fuzz.
+                        if target.procmon:
+                            try:
+                                target.procmon.pre_send(self.total_mutant_index)
+                            except Exception, e:
+                                error_handler(e, "failed on procmon.pre_send()", target)
+                                continue
 
+                        if target.netmon:
+                            try:
+                                target.netmon.pre_send(self.total_mutant_index)
+                            except Exception, e:
+                                error_handler(e, "failed on netmon.pre_send()", target)
+                                continue
+
+                        try:
                             # establish a connection to the target.
                             sock = socket.socket(socket.AF_INET, self.proto)
+                        except Exception, e:
+                            error_handler(e, "failed creating socket", target)
+                            continue
+
+                        if self.bind:
+                            try:
+                                sock.bind(self.bind)
+                            except Exception, e:
+                                error_handler(e, "failed binding on socket", target, sock)
+                                continue
+
+                        try:
                             sock.settimeout(self.timeout)
                             sock.connect((target.host, target.port))
+                        except Exception, e:
+                            error_handler(e, "failed connecting on socket", target, sock)
+                            continue
 
-                            # if SSL is requested, then enable it.
-                            if self.ssl:
+                        # if SSL is requested, then enable it.
+                        if self.ssl:
+                            try:
                                 ssl  = socket.ssl(sock)
                                 sock = httplib.FakeSocket(sock, ssl)
+                            except Exception, e:
+                                error_handler(e, "failed ssl setup", target, sock)
+                                continue
 
-                            # if the user registered a pre-send function, pass it the sock and let it do the deed.
+                        # if the user registered a pre-send function, pass it the sock and let it do the deed.
+                        try:
                             self.pre_send(sock)
+                        except Exception, e:
+                            error_handler(e, "pre_send() failed", target, sock)
+                            continue
 
-                            # send out valid requests for each node in the current path up to the node we are fuzzing.
+                        # send out valid requests for each node in the current path up to the node we are fuzzing.
+                        try:
                             for e in path:
                                 node = self.nodes[e.src]
                                 self.transmit(sock, node, e, target)
+                        except Exception, e:
+                            error_handler(e, "failed transmitting a node up the path", target, sock)
+                            continue
 
-                            # now send the current node we are fuzzing.
+                        # now send the current node we are fuzzing.
+                        try:
                             self.transmit(sock, self.fuzz_node, edge, target)
+                        except Exception, e:
+                            error_handler(e, "failed transmitting fuzz node", target, sock)
+                            continue
 
-                            # if we reach this point the send was successful for break out of the while(1).
-                            break
-
-                        except sex.error, e:
-                            sys.stderr.write("CAUGHT SULLEY EXCEPTION\n")
-                            sys.stderr.write("\t" + e.__str__() + "\n")
-                            sys.exit(1)
-
-                        except:
-                            # close the socket.
-                            sock.close()
-
-                            self.log("failed connecting to %s:%d" % (target.host, target.port))
-
-                            self.log("restarting target and trying again")
-                            self.restart_target(target)
+                        # if we reach this point the send was successful for break out of the while(1).
+                        break
 
                     # if the user registered a post-send function, pass it the sock and let it do the deed.
                     # we do this outside the try/except loop because if our fuzz causes a crash then the post_send()
                     # will likely fail and we don't want to sit in an endless loop.
-                    self.post_send(sock)
+                    try:
+                        self.post_send(sock)
+                    except Exception, e:
+                        error_handler(e, "post_send() failed", target, sock)
 
                     # done with the socket.
                     sock.close()
