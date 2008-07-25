@@ -562,6 +562,7 @@ class repeat:
         self.fuzz_complete = False                      # flag if this primitive has been completely fuzzed
         self.fuzz_library  = []                         # library of static fuzz heuristics to cycle through.
         self.mutant_index  = 0                          # current mutation number
+        self.current_reps  = min_reps                   # current number of repetitions
 
         # ensure the target block exists.
         if self.block_name not in self.request.names:
@@ -607,8 +608,14 @@ class repeat:
 
         # if fuzzing was disabled or complete, and mutate() is called, ensure the original value is restored.
         if not self.fuzzable or self.fuzz_complete:
-            self.value = self.original_value
+            self.value        = self.original_value
+            self.current_reps = self.min_reps
             return False
+
+        if self.variable:
+            self.current_reps = self.variable.value
+        else:
+            self.current_reps = self.fuzz_library[self.mutant_index]
 
         # set the current value as a multiple of the rendered block based on the current fuzz library count.
         block      = self.request.closed_blocks[self.block_name]
@@ -703,7 +710,7 @@ class size:
         self.math          = math
         self.fuzzable      = fuzzable
         self.name          = name
-        
+
         self.original_value = "N/A"    # for get_primitive
         self.s_type         = "size"   # for ease of object identification
         self.bit_field      = primitives.bit_field(0, self.length*8, endian=self.endian, format=self.format, signed=self.signed)
@@ -716,7 +723,7 @@ class size:
         if self.math == None:
             self.math = lambda (x): x
 
-    
+
     def exhaust (self):
         '''
         Exhaust the possible mutations for this primitive.

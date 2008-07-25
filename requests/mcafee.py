@@ -3,7 +3,7 @@ from sulley import *
 from struct import *
 
 # stupid one byte XOR
-def mcafee_epo_xor(buf, poly=0xAA):
+def mcafee_epo_xor (buf, poly=0xAA):
     l = len(buf)
     new_buf = ""
 
@@ -57,4 +57,36 @@ if s_block_start("data", encoder=mcafee_epo_xor):
     s_static("EPO\x00")
     s_dword(1, name="other_opcode")
 
+s_block_end()
+
+########################################################################################################################
+s_initialize("network_agent_udp")
+"""
+    McAfee Network Agent UDP/TCP port 6646
+"""
+
+s_size("kit_and_kaboodle", endian='>', fuzzable=True)
+
+if s_block_start("kit_and_kaboodle"):
+    # xxx - command? might want to fuzz this later.
+    s_static("\x00\x00\x00\x02")
+    
+    # dunno what this is.
+    s_static("\x00\x00\x00\x00")
+    
+    # here comes the first tag.
+    s_static("\x00\x00\x00\x01")
+
+    s_size("first_tag", endian='>', fuzzable=True)
+    if s_block_start("first_tag"):
+        s_string("McNAUniqueId", encoding="utf-16-le")
+    s_block_end()
+
+    # here comes the second tag.
+    s_static("\x0b\x00\x00\x00")
+    
+    s_size("second_tag", fuzzable=True)
+    if s_block_start("second_tag"):
+        s_string("babee6e9-1cba-45be-9c81-05a3fb486ed7")
+    s_block_end()
 s_block_end()

@@ -112,8 +112,8 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
         # if we're on windows, get the DOS path names
         if os.name == "nt":
-            self.vmrun       = GetShortPathName(r"%s" % vmrun)
-            self.vmx         = GetShortPathName(r"%s" % vmx)
+            self.vmrun = GetShortPathName(r"%s" % vmrun)
+            self.vmx   = GetShortPathName(r"%s" % vmx)
         else:
             self.vmrun = vmrun
             self.vmx   = vmx
@@ -280,6 +280,7 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
     def restart_target (self):
         self.log("restarting virtual machine...")
+
         # revert to the specified snapshot and start the image.
         self.revert_to_snapshot()
         self.start()
@@ -289,11 +290,21 @@ class vmcontrol_pedrpc_server (pedrpc.server):
 
 
     def is_target_running (self):
-        time.sleep(10) # sometimes vmrun reports that the VM is up while it's still reverting
-        
-        vmx_trimmed = "\\".join(self.vmx.split("\\")[:-1])
+        # sometimes vmrun reports that the VM is up while it's still reverting.
+        time.sleep(10)
 
-        return vmx_trimmed.lower() in self.list().lower()
+        for line in self.list().lower().split('\n'):
+            if os.name == "nt":
+                try:
+                    line = GetShortPathName(line)
+                # skip invalid paths.
+                except:
+                    continue
+
+            if self.vmx.lower() == line.lower():
+                return True
+
+        return False
 
 
     def wait (self):
