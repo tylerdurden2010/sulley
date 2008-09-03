@@ -120,6 +120,26 @@ class request (pgraph.node):
             for item in self.callbacks[key]:
                 item.render()
 
+        def update_size(stack, name):
+            # walk recursively through each block to update its size
+            blocks = []
+
+            for item in stack:
+                if isinstance(item, size):
+                    item.render()
+                elif isinstance(item, block):
+                    blocks += [item]
+
+            for b in blocks:
+                update_size(b.stack, b.name)
+                b.render()
+
+        # call update_size on each block of the request
+        for item in self.stack:
+            if isinstance(item, block):
+                update_size(item.stack, item.name)
+                item.render()
+
         # now collect, merge and return the rendered items.
         self.rendered = ""
 

@@ -199,7 +199,7 @@ class group (base_primitive):
         self.original_value = self.values[0]
         self.rendered       = ""
         self.fuzz_complete  = False
-        self.mutant_index   = 1      # XXX - should start mutating at 1, since the first item is the default. right?
+        self.mutant_index   = 0
 
         # sanity check that values list only contains strings (or raw data)
         if self.values != []:
@@ -245,7 +245,7 @@ class group (base_primitive):
 
 ########################################################################################################################
 class random_data (base_primitive):
-    def __init__ (self, value, min_length, max_length, max_mutations=25, fuzzable=True, name=None):
+    def __init__ (self, value, min_length, max_length, max_mutations=25, fuzzable=True, step=None, name=None):
         '''
         Generate a random chunk of data while maintaining a copy of the original. A random length range can be specified.
         For a static length, set min/max length to be the same.
@@ -260,6 +260,8 @@ class random_data (base_primitive):
         @param max_mutations: (Optional, def=25) Number of mutations to make before reverting to default
         @type  fuzzable:      Boolean
         @param fuzzable:      (Optional, def=True) Enable/disable fuzzing of this primitive
+        @type  step:          Integer
+        @param step:          (Optional, def=None) If not null, step count between min and max reps, otherwise random
         @type  name:          String
         @param name:          (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
@@ -269,12 +271,16 @@ class random_data (base_primitive):
         self.max_length    = max_length
         self.max_mutations = max_mutations
         self.fuzzable      = fuzzable
+        self.step          = step
         self.name          = name
 
         self.s_type        = "random_data"  # for ease of object identification
         self.rendered      = ""             # rendered value
         self.fuzz_complete = False          # flag if this primitive has been completely fuzzed
         self.mutant_index  = 0              # current mutation number
+
+        if self.step:
+            self.max_mutations = (self.max_length - self.min_length) / self.step + 1
 
 
     def mutate (self):
@@ -295,7 +301,11 @@ class random_data (base_primitive):
             return False
 
         # select a random length for this string.
-        length = random.randint(self.min_length, self.max_length)
+        if not self.step:
+            length = random.randint(self.min_length, self.max_length)
+        # select a length function of the mutant index and the step.
+        else:
+            length = self.min_length + self.mutant_index * self.step
 
         # reset the value and generate a random string of the determined length.
         self.value = ""
@@ -367,7 +377,7 @@ class string (base_primitive):
     # store fuzz_library as a class variable to avoid copying the ~70MB structure across each instantiated primitive.
     fuzz_library = []
 
-    def __init__ (self, value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, name=None):
+    def __init__ (self, value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, max_len=0, name=None):
         '''
         Primitive that cycles through a library of "bad" strings. The class variable 'fuzz_library' contains a list of
         smart fuzz values global across all instances. The 'this_library' variable contains fuzz values specific to
@@ -384,6 +394,8 @@ class string (base_primitive):
         @param encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
         @type  fuzzable: Boolean
         @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
+        @type  max_len:  Integer
+        @param max_len:  (Optional, def=0) Maximum string length
         @type  name:     String
         @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
         '''
@@ -415,7 +427,7 @@ class string (base_primitive):
 
         # if the fuzz library has not yet been initialized, do so with all the global values.
         if not self.fuzz_library:
-            self.fuzz_library  = \
+            string.fuzz_library  = \
             [
                 # omission.
                 "",
@@ -509,7 +521,7 @@ class string (base_primitive):
             for length in [128, 256, 1024, 2048, 4096, 32767, 0xFFFF]:
                 s = "B" * length
                 s = s[:len(s)/2] + "\x00" + s[len(s)/2:]
-                self.fuzz_library.append(s)
+                string.fuzz_library.append(s)
 
             # if the optional file '.fuzz_strings' is found, parse each line as a new entry for the fuzz library.
             try:
@@ -519,11 +531,18 @@ class string (base_primitive):
                     fuzz_string = fuzz_string.rstrip("\r\n")
 
                     if fuzz_string != "":
-                        self.fuzz_library.append(fuzz_string)
+                        string.fuzz_library.append(fuzz_string)
 
                 fh.close()
             except:
                 pass
+
+        # delete strings which length is superior than max_len
+        if max_len > 0:
+            if any(len(s) > max_len for s in self.this_library):
+                self.this_library = list(set([s[:max_len] for s in self.this_library]))
+            if any(len(s) > max_len for s in self.fuzz_library):
+                self.fuzz_library = list(set([s[:max_len] for s in self.fuzz_library]))
 
 
     def add_long_strings (self, sequence):
@@ -540,7 +559,7 @@ class string (base_primitive):
                        0xFFFF+2, 99999, 100000, 500000, 1000000]:
 
             long_string = sequence * length
-            self.fuzz_library.append(long_string)
+            string.fuzz_library.append(long_string)
 
 
     def mutate (self):
