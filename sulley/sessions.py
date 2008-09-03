@@ -351,10 +351,9 @@ class session (pgraph.graph):
             # keep track of the path as we fuzz through it, don't count the root node.
             # we keep track of edges as opposed to nodes because if there is more then one path through a set of
             # given nodes we don't want any ambiguity.
-            if edge.src != self.root.id:
-                path.append(edge)
+            path.append(edge)
 
-            current_path  = " -> ".join([self.nodes[e.src].name for e in path])
+            current_path  = " -> ".join([self.nodes[e.src].name for e in path[1:]])
             current_path += " -> %s" % self.fuzz_node.name
 
             self.log("current fuzz path: %s" % current_path, 2)
@@ -455,8 +454,8 @@ class session (pgraph.graph):
 
                         # send out valid requests for each node in the current path up to the node we are fuzzing.
                         try:
-                            for e in path:
-                                node = self.nodes[e.src]
+                            for e in path[:-1]:
+                                node = self.nodes[e.dst]
                                 self.transmit(sock, node, e, target)
                         except Exception, e:
                             error_handler(e, "failed transmitting a node up the path", target, sock)
@@ -630,11 +629,12 @@ class session (pgraph.graph):
 
             # if the user-supplied crash threshold is reached, exhaust this node.
             if self.crashing_primitives[self.fuzz_node.mutant] >= self.crash_threshold:
-                # as long as we're not a group
-                if not isinstance(self.crashing_primitives[self.fuzz_node.mutant], primitives.group):
-                    skipped = self.fuzz_node.mutant.exhaust()
-                    self.log("crash threshold reached for this primitive, exhausting %d mutants." % skipped)
-                    self.total_mutant_index += skipped
+                # as long as we're not a group and not a repeat.
+                if not isinstance(self.fuzz_node.mutant, primitives.group):
+                    if not isinstance(self.fuzz_node.mutant, blocks.repeat):
+                        skipped = self.fuzz_node.mutant.exhaust()
+                        self.log("crash threshold reached for this primitive, exhausting %d mutants." % skipped)
+                        self.total_mutant_index += skipped
 
             # start the target back up.
             self.restart_target(target, stop_first=False)
@@ -746,11 +746,11 @@ class session (pgraph.graph):
 
         data = None
 
-        self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
-
         # if the edge has a callback, process it. the callback has the option to render the node, modify it and return.
         if edge.callback:
             data = edge.callback(self, node, edge, sock)
+
+        self.log("xmitting: [%d.%d]" % (node.id, self.total_mutant_index), level=2)
 
         # if not data was returned by the callback, render the node here.
         if not data:
@@ -775,7 +775,7 @@ class session (pgraph.graph):
         except Exception, inst:
             self.log("Socket error, send: %s" % inst[1])
 
-        if self.proto == socket.SOCK_STREAM:
+        if self.proto == socket.SOCK_STREAM or socket.SOCK_DGRAM:
             # XXX - might have a need to increase this at some point. (possibly make it a class parameter)
             try:
                 self.last_recv = sock.recv(10000)

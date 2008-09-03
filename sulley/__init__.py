@@ -344,7 +344,7 @@ def s_lego (lego_type, value=None, options={}):
     blocks.CURRENT.pop()
 
 
-def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, name=None):
+def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, step=None, name=None):
     '''
     Generate a random chunk of data while maintaining a copy of the original. A random length range can be specified.
     For a static length, set min/max length to be the same.
@@ -359,11 +359,13 @@ def s_random (value, min_length, max_length, num_mutations=25, fuzzable=True, na
     @param num_mutations: (Optional, def=25) Number of mutations to make before reverting to default
     @type  fuzzable:      Boolean
     @param fuzzable:      (Optional, def=True) Enable/disable fuzzing of this primitive
+    @type  step:          Integer
+    @param step:          (Optional, def=None) If not null, step count between min and max reps, otherwise random
     @type  name:          String
     @param name:          (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    random = primitives.random_data(value, min_length, max_length, num_mutations, fuzzable, name)
+    random = primitives.random_data(value, min_length, max_length, num_mutations, fuzzable, step, name)
     blocks.CURRENT.push(random)
 
 
@@ -383,7 +385,7 @@ def s_static (value, name=None):
     blocks.CURRENT.push(static)
 
 
-def s_string (value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, name=None):
+def s_string (value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, max_len=0, name=None):
     '''
     Push a string onto the current block stack.
 
@@ -397,11 +399,13 @@ def s_string (value, size=-1, padding="\x00", encoding="ascii", fuzzable=True, n
     @param encoding: (Optonal, def="ascii") String encoding, ex: utf_16_le for Microsoft Unicode.
     @type  fuzzable: Boolean
     @param fuzzable: (Optional, def=True) Enable/disable fuzzing of this primitive
+    @type  max_len:  Integer
+    @param max_len:  (Optional, def=0) Maximum string length
     @type  name:     String
     @param name:     (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    s = primitives.string(value, size, padding, encoding, fuzzable, name)
+    s = primitives.string(value, size, padding, encoding, fuzzable, max_len, name)
     blocks.CURRENT.push(s)
 
 
@@ -429,7 +433,7 @@ def s_bit_field (value, width, endian="<", format="binary", signed=False, full_r
     @param name:       (Optional, def=None) Specifying a name gives you direct access to a primitive
     '''
 
-    bit_field = primitives.bit_field(value, width, endian, format, signed, full_range, fuzzable, name)
+    bit_field = primitives.bit_field(value, width, None, endian, format, signed, full_range, fuzzable, name)
     blocks.CURRENT.push(bit_field)
 
 
