@@ -754,9 +754,10 @@ class size:
 
         num = self.num_mutations() - self.mutant_index
 
-        self.fuzz_complete  = True
-        self.mutant_index   = self.num_mutations()
-        self.value          = self.original_value
+        self.fuzz_complete          = True
+        self.mutant_index           = self.num_mutations()
+        self.bit_field.mutant_index = self.num_mutations()
+        self.value                  = self.original_value
 
         return num
 
@@ -768,6 +769,11 @@ class size:
         @rtype:  Boolean
         @return: True on success, False otherwise.
         '''
+
+        if self.mutant_index == self.num_mutations():
+            self.fuzz_complete = True
+
+        self.mutant_index += 1
 
         return self.bit_field.mutate()
 
