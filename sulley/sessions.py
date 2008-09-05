@@ -9,6 +9,7 @@ import cPickle
 import threading
 import BaseHTTPServer
 
+import blocks
 import pedrpc
 import pgraph
 import sex
@@ -644,6 +645,7 @@ class session (pgraph.graph):
                         skipped = self.fuzz_node.mutant.exhaust()
                         self.log("crash threshold reached for this primitive, exhausting %d mutants." % skipped)
                         self.total_mutant_index += skipped
+                        self.fuzz_node.mutant_index += skipped
 
             # start the target back up.
             self.restart_target(target, stop_first=False)
