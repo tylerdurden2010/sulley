@@ -498,6 +498,15 @@ class session (pgraph.graph):
         # finished with the last node on the path, pop it off the path stack.
         if path:
             path.pop()
+            
+        # loop to keep the main thread running and be able to receive signals
+        if self.signal_module:
+            # wait for a signal only if fuzzing is finished (this function is recursive)
+            # if fuzzing is not finished, web interface thread will catch it
+            if self.total_mutant_index == self.total_num_mutations:
+                import signal
+                while True:
+                    signal.pause()
 
 
     ####################################################################################################################
@@ -723,6 +732,23 @@ class session (pgraph.graph):
 
         self.total_mutant_index  = 0
         self.total_num_mutations = self.num_mutations()
+        
+        # web interface thread doesn't catch KeyboardInterrupt
+        # add a signal handler, and exit on SIGINT
+        # XXX - should wait for the end of the ongoing test case, and stop gracefully netmon and procmon
+        #     - doesn't work on OS where the signal module isn't available        
+        try:
+            import signal
+            self.signal_module = True
+        except:
+            self.signal_module = False
+        if self.signal_module:
+            def exit_abruptly(signal, frame):
+                '''Save current settings (just in case) and exit'''
+                self.export_file()
+                self.log("SIGINT received ... exiting")
+                sys.exit(0)
+            signal.signal(signal.SIGINT, exit_abruptly)
 
         # spawn the web interface.
         t = web_interface_thread(self)
