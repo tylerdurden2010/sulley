@@ -1,4 +1,5 @@
 import sulley.blocks
+import sulley.instrumentation
 import sulley.legos
 import sulley.pedrpc
 import sulley.primitives

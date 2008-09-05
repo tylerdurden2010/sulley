@@ -69,6 +69,7 @@ There is some rhyme and reason to the Sulley directory structure. Maintaining th
                 </ul>
             <li> <i>__init__.py</i>: The various 's_' aliases that are used in creating requests are defined here.
             <li> <i>blocks.py</i>: Blocks and block helpers are defined here.
+            <li> <i>instrumentation.py</i>: External instrumentation feature to monitor targets not supporting debugger.
             <li> <i>pedrpc.py</i>: This file defines client and server classes which are used by Sulley for communications between the various agents and the main fuzzer.
             <li> <i>primitives.py</i>: The various fuzzer primitives including static, random, strings and integers are defined here.
             <li> <i>sessions.py</i>: Functionality for building and executing a session.
@@ -504,6 +505,31 @@ ERR&gt; USAGE: vmcontrol.py
     &lt;-r|--vmrun FILENAME&gt;  path to vmrun.exe
     [-s|--snapshot NAME&gt;   set the snapshot name
     [-l|--log_level LEVEL] log level (default 1), increase for more verbosity
+</pre>
+
+<h4>External instrumentation</h4>
+Some kind of targets (embedded devices for example) don't support debugger, and the process monitor agent can't be used in these cases. The external instrumentation class allows external commands to be called to detect fault and restart the target . SSH is used in the following example, but any python function or external script can be used:
+<pre class="code">
+import os
+
+def ssh_is_alive():
+    '''Check that the target is alive. Called after each test case. Return True if alive, False otherwise'''
+
+    _, stdout = os.popen2('ssh %s pidof target' % IP_DST)
+    pid = stdout.read()
+    return pid != ''
+
+def ssh_restart():
+    '''Restart the target. Called when instrumentation (post) fail.'''
+
+    os.popen2('ssh %s /etc/init.d/target restart' % IP_DST)
+
+sess           = sessions.session()
+target         = sessions.target(IP_DST, PORT_DST)
+target.procmon = instrumentation.external(post=ssh_is_alive, start=ssh_restart)
+sess.add_target(target)
+sess.connect(s_get('node'))
+sess.fuzz()
 </pre>
 
 <h3>Web Monitoring Interface</h3>
