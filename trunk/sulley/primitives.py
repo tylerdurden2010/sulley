@@ -541,6 +541,7 @@ class string (base_primitive):
         if max_len > 0:
             if any(len(s) > max_len for s in self.this_library):
                 self.this_library = list(set([s[:max_len] for s in self.this_library]))
+
             if any(len(s) > max_len for s in self.fuzz_library):
                 self.fuzz_library = list(set([s[:max_len] for s in self.fuzz_library]))
 
