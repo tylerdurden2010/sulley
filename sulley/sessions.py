@@ -109,28 +109,30 @@ class connection (pgraph.edge.edge):
 
 ########################################################################################################################
 class session (pgraph.graph):
-    def __init__ (self, session_filename=None, skip=0, sleep_time=1.0, log_level=2, proto="tcp", bind=None, restart_interval=0, timeout=5.0, web_port=26000, crash_threshold=3):
+    def __init__ (self, session_filename=None, skip=0, sleep_time=1.0, log_level=2, proto="tcp", bind=None, restart_interval=0, timeout=5.0, web_port=26000, crash_threshold=3, restart_sleep_time=300):
         '''
         Extends pgraph.graph and provides a container for architecting protocol dialogs.
 
-        @type  session_filename: String
-        @kwarg session_filename: (Optional, def=None) Filename to serialize persistant data to
-        @type  skip:             Integer
-        @kwarg skip:             (Optional, def=0) Number of test cases to skip
-        @type  sleep_time:       Float
-        @kwarg sleep_time:       (Optional, def=1.0) Time to sleep in between tests
-        @type  log_level:        Integer
-        @kwarg log_level:        (Optional, def=2) Set the log level, higher number == more log messages
-        @type  proto:            String
-        @kwarg proto:            (Optional, def="tcp") Communication protocol ("tcp", "udp", "ssl")
-        @type  bind:             Tuple (host, port)
-        @kwarg bind:             (Optional, def=random) Socket bind address and port
-        @type  timeout:          Float
-        @kwarg timeout:          (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
-        @type  restart_interval: Integer
-        @kwarg restart_interval  (Optional, def=0) Restart the target after n test cases, disable by setting to 0
-        @type  crash_threshold:  Integer
-        @kwarg crash_threshold   (Optional, def=3) Maximum number of crashes allowed before a node is exhaust
+        @type  session_filename:   String
+        @kwarg session_filename:   (Optional, def=None) Filename to serialize persistant data to
+        @type  skip:               Integer
+        @kwarg skip:               (Optional, def=0) Number of test cases to skip
+        @type  sleep_time:         Float
+        @kwarg sleep_time:         (Optional, def=1.0) Time to sleep in between tests
+        @type  log_level:          Integer
+        @kwarg log_level:          (Optional, def=2) Set the log level, higher number == more log messages
+        @type  proto:              String
+        @kwarg proto:              (Optional, def="tcp") Communication protocol ("tcp", "udp", "ssl")
+        @type  bind:               Tuple (host, port)
+        @kwarg bind:               (Optional, def=random) Socket bind address and port
+        @type  timeout:            Float
+        @kwarg timeout:            (Optional, def=5.0) Seconds to wait for a send/recv prior to timing out
+        @type  restart_interval:   Integer
+        @kwarg restart_interval    (Optional, def=0) Restart the target after n test cases, disable by setting to 0
+        @type  crash_threshold:    Integer
+        @kwarg crash_threshold     (Optional, def=3) Maximum number of crashes allowed before a node is exhaust
+        @type  restart_sleep_time: Integer
+        @kwarg restart_sleep_time: Optional, def=300) Time in seconds to sleep when target can't be restarted
         '''
 
         # run the parent classes initialization routine first.
@@ -147,6 +149,7 @@ class session (pgraph.graph):
         self.timeout             = timeout
         self.web_port            = web_port
         self.crash_threshold     = crash_threshold
+        self.restart_sleep_time  = restart_sleep_time
 
         self.total_num_mutations = 0
         self.total_mutant_index  = 0
@@ -297,6 +300,7 @@ class session (pgraph.graph):
         data["session_filename"]    = self.session_filename
         data["skip"]                = self.total_mutant_index
         data["sleep_time"]          = self.sleep_time
+        data["restart_sleep_time"]  = self.restart_sleep_time
         data["log_level"]           = self.log_level
         data["proto"]               = self.proto
         data["restart_interval"]    = self.restart_interval
@@ -530,6 +534,7 @@ class session (pgraph.graph):
 
         self.session_filename    = data["session_filename"]
         self.sleep_time          = data["sleep_time"]
+        self.restart_sleep_time  = data["restart_sleep_time"]
         self.log_level           = data["log_level"]
         self.proto               = data["proto"]
         self.restart_interval    = data["restart_interval"]
@@ -719,8 +724,8 @@ class session (pgraph.graph):
 
         # otherwise all we can do is wait a while for the target to recover on its own.
         else:
-            self.log("no vmcontrol or procmon channel available ... sleeping for 5 minutes")
-            time.sleep(300)
+            self.log("no vmcontrol or procmon channel available ... sleeping for %d seconds" % self.restart_sleep_time)
+            time.sleep(self.restart_sleep_time)
 
         # pass specified target parameters to the PED-RPC server to re-establish connections.
         target.pedrpc_connect()
