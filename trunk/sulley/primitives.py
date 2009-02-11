@@ -450,6 +450,8 @@ class string (base_primitive):
                 "%00/",
                 "%00",
                 "%u0000",
+                "%\xfe\xf0%\x00\xff",
+                "%\xfe\xf0%\x01\xff" * 20,
 
                 # format strings.
                 "%n"     * 100,
@@ -537,7 +539,7 @@ class string (base_primitive):
             except:
                 pass
 
-        # delete strings which length is superior than max_len
+        # delete strings which length is greater than max_len.
         if max_len > 0:
             if any(len(s) > max_len for s in self.this_library):
                 self.this_library = list(set([s[:max_len] for s in self.this_library]))
